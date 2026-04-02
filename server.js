@@ -1,5 +1,5 @@
 /**
- * Webhook Server: Phantombuster → Claude AI → Lemlist
+ * Webhook Server: Phantombuster â Claude AI â Lemlist
  * Genera mensajes outbound personalizados a partir de actividad LinkedIn
  */
 
@@ -11,7 +11,7 @@ const path = require('path');
 const app = express();
 app.use(express.json());
 
-// ─── CONFIG (se leen desde variables de entorno) ─────────────────────────────
+// âââ CONFIG (se leen desde variables de entorno) âââââââââââââââââââââââââââââ
 const ANTHROPIC_API_KEY  = process.env.ANTHROPIC_API_KEY;
 const LEMLIST_API_KEY    = process.env.LEMLIST_API_KEY;
 const PHANTOMBUSTER_ORG  = process.env.PHANTOMBUSTER_ORG  || '4237829874326193';
@@ -19,13 +19,13 @@ const PHANTOM_AGENT_ID   = process.env.PHANTOM_AGENT_ID   || '5621422771951702';
 const WEBHOOK_SECRET     = process.env.WEBHOOK_SECRET     || 'native-outbound-2026';
 const PORT               = process.env.PORT               || 3000;
 
-// POST_FRESHNESS_DAYS: posts más antiguos que esto se tratan como "sin contexto reciente"
+// POST_FRESHNESS_DAYS: posts mÃ¡s antiguos que esto se tratan como "sin contexto reciente"
 const POST_FRESHNESS_DAYS = parseInt(process.env.POST_FRESHNESS_DAYS || '60');
 
 // Archivo local para trackear contactos ya procesados
 const PROCESSED_FILE = path.join(__dirname, 'processed_contacts.json');
 
-// ─── HELPERS ─────────────────────────────────────────────────────────────────
+// âââ HELPERS âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 function loadProcessed() {
   try {
@@ -39,7 +39,7 @@ function saveProcessed(data) {
   fs.writeFileSync(PROCESSED_FILE, JSON.stringify(data, null, 2));
 }
 
-// Normaliza una URL de LinkedIn para comparación: extrae "linkedin.com/in/username"
+// Normaliza una URL de LinkedIn para comparaciÃ³n: extrae "linkedin.com/in/username"
 function normalizeLinkedinUrl(url) {
   if (!url || typeof url !== 'string') return '';
   const match = url.toLowerCase().match(/linkedin\.com\/in\/([^/?#\s]+)/);
@@ -47,7 +47,7 @@ function normalizeLinkedinUrl(url) {
   return '';
 }
 
-// Calcula los días de antigüedad de una fecha
+// Calcula los dÃ­as de antigÃ¼edad de una fecha
 function daysAgo(dateStr) {
   if (!dateStr) return Infinity;
   // Fechas absolutas: "2025-12-15", "Dec 15, 2025", ISO, etc.
@@ -69,90 +69,88 @@ function daysAgo(dateStr) {
   return Infinity;
 }
 
-// Devuelve true si al menos un post es más reciente que maxDaysOld
+// Devuelve true si al menos un post es mÃ¡s reciente que maxDaysOld
 function hasRecentPosts(posts, maxDaysOld) {
   if (!posts || posts.length === 0) return false;
   return posts.some(p => daysAgo(p.postDate) <= maxDaysOld);
 }
 
-// ─── LEMLIST EMAIL MAP (LinkedIn URL → email) ─────────────────────────────────
+// âââ LEMLIST EMAIL MAP (LinkedIn URL â email) âââââââââââââââââââââââââââââââââ
 
-let lemlistEmailMap = {}; // normalizedLinkedinUrl → email
+let lemlistEmailMap = {}; // normalizedLinkedinUrl â email
 let lemlistMapBuiltAt = null;
 
 async function buildLemlistEmailMap() {
-  console.log('\n📧 Construyendo mapa LinkedIn→Email desde Lemlist...');
+  console.log('\n\u{1F4E7} Construyendo mapa LinkedIn→Email desde Lemlist...');
   const map = {};
 
+  function extractLinkedInFromLead(lead, map) {
+    const email = lead.email;
+    if (!email) return;
+    const allValues = Object.values(lead).filter(v => typeof v === 'string');
+    for (const val of allValues) {
+      const normalized = normalizeLinkedinUrl(val);
+      if (normalized) { map[normalized] = email; break; }
+    }
+  }
+
   try {
-    // 1. Obtener todas las campañas
+    // 1. Contactos GLOBALES
+    console.log('   \u{1F50D} Buscando en contactos globales...');
+    let gOff = 0; let gTotal = 0;
+    while (true) {
+      try {
+        const gRes = await axios.get('https://api.lemlist.com/api/leads', {
+          auth: { username: '', password: LEMLIST_API_KEY },
+          params: { limit: 100, offset: gOff }
+        });
+        const gl = gRes.data || [];
+        if (gl.length === 0) break;
+        for (const lead of gl) extractLinkedInFromLead(lead, map);
+        gTotal += gl.length;
+        if (gl.length < 100) break;
+        gOff += 100;
+        await new Promise(r => setTimeout(r, 150));
+      } catch (err) { console.error('   \u26A0\uFE0F Contactos globales:', err.message); break; }
+    }
+    console.log(`   \u2705 Contactos globales: ${gTotal} procesados`);
+
+    // 2. Campanas (fallback)
     const campaignsRes = await axios.get(
       'https://api.lemlist.com/api/campaigns',
       { auth: { username: '', password: LEMLIST_API_KEY } }
     );
     const campaigns = campaignsRes.data || [];
-    console.log(`   Campañas encontradas: ${campaigns.length}`);
+    console.log(`   Campanas encontradas: ${campaigns.length}`);
 
-    // 2. Por cada campaña, paginar todos los leads
     for (const campaign of campaigns) {
-      let offset = 0;
-      const limit = 100;
-      let totalFetched = 0;
-
+      let offset = 0; let totalFetched = 0;
       while (true) {
         try {
           const leadsRes = await axios.get(
             `https://api.lemlist.com/api/campaigns/${campaign._id}/leads`,
-            {
-              auth: { username: '', password: LEMLIST_API_KEY },
-              params: { limit, offset }
-            }
+            { auth: { username: '', password: LEMLIST_API_KEY }, params: { limit: 100, offset } }
           );
           const leads = leadsRes.data || [];
           if (leads.length === 0) break;
-
-          for (const lead of leads) {
-            const email = lead.email;
-            if (!email) continue;
-
-            // Buscar LinkedIn URL en TODOS los campos del lead
-            // (el nombre del campo depende de cómo se importó)
-            const allValues = Object.values(lead).filter(v => typeof v === 'string');
-            for (const val of allValues) {
-              const normalized = normalizeLinkedinUrl(val);
-              if (normalized) {
-                map[normalized] = email;
-                break;
-              }
-            }
-          }
-
+          for (const lead of leads) extractLinkedInFromLead(lead, map);
           totalFetched += leads.length;
-          if (leads.length < limit) break;
-          offset += limit;
-        } catch (err) {
-          console.error(`   ⚠️  Error en campaña ${campaign.name}: ${err.message}`);
-          break;
-        }
+          if (leads.length < 100) break;
+          offset += 100;
+        } catch (err) { console.error(`   \u26A0\uFE0F ${campaign.name}: ${err.message}`); break; }
       }
-
-      if (totalFetched > 0) {
-        console.log(`   ✅ ${campaign.name}: ${totalFetched} leads cargados`);
-      }
-
-      // Rate limit: pequeña pausa entre campañas
+      if (totalFetched > 0) console.log(`   \u2705 ${campaign.name}: ${totalFetched} leads`);
       await new Promise(r => setTimeout(r, 200));
     }
 
     lemlistEmailMap = map;
     lemlistMapBuiltAt = new Date();
-    console.log(`\n✅ Mapa construido: ${Object.keys(map).length} leads con LinkedIn URL\n`);
+    console.log(`\n\u2705 Mapa construido: ${Object.keys(map).length} leads con LinkedIn URL\n`);
 
   } catch (err) {
-    console.error('❌ Error construyendo mapa Lemlist:', err.message);
+    console.error('\u274C Error construyendo mapa Lemlist:', err.message);
   }
 }
-
 // Resuelve el email de un lead dado su profileUrl de LinkedIn
 function resolveEmailFromLinkedIn(profileUrl) {
   const normalized = normalizeLinkedinUrl(profileUrl);
@@ -160,7 +158,7 @@ function resolveEmailFromLinkedIn(profileUrl) {
   return lemlistEmailMap[normalized] || null;
 }
 
-// ─── FETCH PHANTOMBUSTER RESULTS ─────────────────────────────────────────────
+// âââ FETCH PHANTOMBUSTER RESULTS âââââââââââââââââââââââââââââââââââââââââââââ
 
 async function fetchPhantombusterResults() {
   const url = `https://api.phantombuster.com/api/v2/agents/fetch-output?id=${PHANTOM_AGENT_ID}`;
@@ -209,7 +207,7 @@ function parseCsv(csvText) {
   });
 }
 
-// ─── CLAUDE AI: GENERAR MENSAJES PERSONALIZADOS ───────────────────────────────
+// âââ CLAUDE AI: GENERAR MENSAJES PERSONALIZADOS âââââââââââââââââââââââââââââââ
 
 async function generatePersonalizedMessages(contact, postsAreRecent) {
   const { firstName, lastName, jobTitle, companyName, posts, profileUrl } = contact;
@@ -217,10 +215,10 @@ async function generatePersonalizedMessages(contact, postsAreRecent) {
   let postsText;
 
   if (!postsAreRecent || !posts || posts.length === 0) {
-    // Posts muy viejos o sin posts → contexto genérico
-    postsText = `⚠️  Sin actividad reciente disponible (posts >60 días o sin posts)
-→ Genera mensajes basados en su cargo y empresa. Menciona el canal tradicional de forma genérica.
-→ NO inventes ni parafrasees posts específicos que no tienes.`;
+    // Posts muy viejos o sin posts â contexto genÃ©rico
+    postsText = `â ï¸  Sin actividad reciente disponible (posts >60 dÃ­as o sin posts)
+â Genera mensajes basados en su cargo y empresa. Menciona el canal tradicional de forma genÃ©rica.
+â NO inventes ni parafrasees posts especÃ­ficos que no tienes.`;
   } else {
     postsText = posts.map((p, i) => {
       const engagement = [];
@@ -245,71 +243,71 @@ Contenido completo:
 
 Representas a Native, plataforma de Computer Vision + AI Agents para marcas FMCG/CPG.
 
-LO QUE HACE NATIVE (úsalo selectivamente, nunca todo junto):
-• Visibilidad del 100% del punto de venta tradicional mediante Computer Vision
-• Detecta oportunidades de distribución, quiebre de stock y share of shelf en tiempo real
-• Convierte datos granulares (tienda por tienda, SKU por SKU) en decisiones de ejecución
-• Elimina puntos ciegos del canal: los equipos saben exactamente dónde y cuándo actuar
-• Clientes activos en México, Colombia, Perú, Chile, Ecuador (canal tradicional)
+LO QUE HACE NATIVE (Ãºsalo selectivamente, nunca todo junto):
+â¢ Visibilidad del 100% del punto de venta tradicional mediante Computer Vision
+â¢ Detecta oportunidades de distribuciÃ³n, quiebre de stock y share of shelf en tiempo real
+â¢ Convierte datos granulares (tienda por tienda, SKU por SKU) en decisiones de ejecuciÃ³n
+â¢ Elimina puntos ciegos del canal: los equipos saben exactamente dÃ³nde y cuÃ¡ndo actuar
+â¢ Clientes activos en MÃ©xico, Colombia, PerÃº, Chile, Ecuador (canal tradicional)
 
-TU MISIÓN: escribir mensajes que parezcan escritos a mano por alguien que REALMENTE leyó sus posts.
+TU MISIÃN: escribir mensajes que parezcan escritos a mano por alguien que REALMENTE leyÃ³ sus posts.
 
 PROCESO OBLIGATORIO antes de escribir:
-1. Identifica el TEMA CENTRAL que mueve a esta persona (¿qué lo/la apasiona? ¿qué problema menciona?)
-2. Encuentra UNA frase, idea o dato específico de sus posts que puedas mencionar literalmente
-3. Detecta su tono (técnico, inspiracional, operativo, estratégico) y espéjalo
-4. Conecta su preocupación real con el ángulo más relevante de Native (sin mencionar Native aún)
+1. Identifica el TEMA CENTRAL que mueve a esta persona (Â¿quÃ© lo/la apasiona? Â¿quÃ© problema menciona?)
+2. Encuentra UNA frase, idea o dato especÃ­fico de sus posts que puedas mencionar literalmente
+3. Detecta su tono (tÃ©cnico, inspiracional, operativo, estratÃ©gico) y espÃ©jalo
+4. Conecta su preocupaciÃ³n real con el Ã¡ngulo mÃ¡s relevante de Native (sin mencionar Native aÃºn)
 
 REGLAS DE ESCRITURA:
-- Primera línea: referencia directa y específica a algo de sus posts (o, si no hay posts recientes, referencia a su cargo/industria de forma concreta)
-- Email: máx 120 palabras, sin bullets, fluido como conversación
-- LinkedIn DM: máx 75 palabras, más casual y directo
-- Follow-ups: ángulos distintos, no repetir el mismo gancho
-- NUNCA empieces con "Vi tu post sobre..." — sé más creativo
-- NUNCA menciones "Native" en el primer contacto — solo genera curiosidad
-- Idioma: detecta si escribe en español o inglés y úsalo
+- Primera lÃ­nea: referencia directa y especÃ­fica a algo de sus posts (o, si no hay posts recientes, referencia a su cargo/industria de forma concreta)
+- Email: mÃ¡x 120 palabras, sin bullets, fluido como conversaciÃ³n
+- LinkedIn DM: mÃ¡x 75 palabras, mÃ¡s casual y directo
+- Follow-ups: Ã¡ngulos distintos, no repetir el mismo gancho
+- NUNCA empieces con "Vi tu post sobre..." â sÃ© mÃ¡s creativo
+- NUNCA menciones "Native" en el primer contacto â solo genera curiosidad
+- Idioma: detecta si escribe en espaÃ±ol o inglÃ©s y Ãºsalo
 
-SEÑALES DE PERSONALIZACIÓN REAL (al menos UNA por mensaje):
-• Citar una frase textual o parafrasearla de forma reconocible
-• Referenciar un resultado o métrica que mencionó
-• Mencionar un país/mercado específico que nombró
-• Aludir a un reto o aprendizaje que compartió`;
+SEÃALES DE PERSONALIZACIÃN REAL (al menos UNA por mensaje):
+â¢ Citar una frase textual o parafrasearla de forma reconocible
+â¢ Referenciar un resultado o mÃ©trica que mencionÃ³
+â¢ Mencionar un paÃ­s/mercado especÃ­fico que nombrÃ³
+â¢ Aludir a un reto o aprendizaje que compartiÃ³`;
 
   const userPrompt = `PROSPECTO:
-• Nombre: ${firstName} ${lastName}
-• Cargo: ${jobTitle || 'No especificado'}
-• Empresa: ${companyName || 'No especificada'}
-• LinkedIn: ${profileUrl || 'N/A'}
+â¢ Nombre: ${firstName} ${lastName}
+â¢ Cargo: ${jobTitle || 'No especificado'}
+â¢ Empresa: ${companyName || 'No especificada'}
+â¢ LinkedIn: ${profileUrl || 'N/A'}
 
-═══════════════════════════════════════
-ACTIVIDAD LINKEDIN RECIENTE (LEE CON ATENCIÓN):
-═══════════════════════════════════════
+âââââââââââââââââââââââââââââââââââââââ
+ACTIVIDAD LINKEDIN RECIENTE (LEE CON ATENCIÃN):
+âââââââââââââââââââââââââââââââââââââââ
 ${postsText}
 
-═══════════════════════════════════════
-ANÁLISIS PREVIO (piensa en voz alta antes de escribir):
+âââââââââââââââââââââââââââââââââââââââ
+ANÃLISIS PREVIO (piensa en voz alta antes de escribir):
 Antes de generar los mensajes, incluye brevemente en tu respuesta JSON un campo "analysis" con:
 - El tema central que identifiques
-- La frase/dato específico que usarás como gancho
-- El ángulo de Native más relevante para este perfil
+- La frase/dato especÃ­fico que usarÃ¡s como gancho
+- El Ã¡ngulo de Native mÃ¡s relevante para este perfil
 
 Luego genera los mensajes con exactamente estas claves:
-═══════════════════════════════════════
+âââââââââââââââââââââââââââââââââââââââ
 
 {
   "analysis": {
-    "centralTheme": "¿de qué trata principalmente su actividad?",
-    "hook": "la frase/dato específico que usarás",
-    "nativeAngle": "qué aspecto de Native conecta mejor con este perfil"
+    "centralTheme": "Â¿de quÃ© trata principalmente su actividad?",
+    "hook": "la frase/dato especÃ­fico que usarÃ¡s",
+    "nativeAngle": "quÃ© aspecto de Native conecta mejor con este perfil"
   },
-  "customSubject": "asunto del email (máx 55 chars, sin clickbait, que genere curiosidad real — puede referenciar algo de sus posts)",
-  "customEmailBody": "cuerpo del email (máx 120 palabras, primera línea con referencia específica a sus posts, segunda parte abre una pregunta o tensión relevante para su rol, cierre con CTA suave)",
-  "customLinkedinDm": "mensaje directo LinkedIn (máx 75 palabras, tono más casual, como si ya se conocieran de haber leído sus posts, termina con pregunta abierta)",
-  "customFollowup1": "follow-up 1 — día 4 (máx 80 palabras, ángulo diferente: ahora sí puedes mencionar qué hace Native de forma concisa, pero conectado a algo que él/ella mencionó)",
-  "customFollowup2": "follow-up 2 — día 8 (máx 55 palabras, muy breve, admite que no ha respondido con humor suave, deja la puerta abierta)"
+  "customSubject": "asunto del email (mÃ¡x 55 chars, sin clickbait, que genere curiosidad real â puede referenciar algo de sus posts)",
+  "customEmailBody": "cuerpo del email (mÃ¡x 120 palabras, primera lÃ­nea con referencia especÃ­fica a sus posts, segunda parte abre una pregunta o tensiÃ³n relevante para su rol, cierre con CTA suave)",
+  "customLinkedinDm": "mensaje directo LinkedIn (mÃ¡x 75 palabras, tono mÃ¡s casual, como si ya se conocieran de haber leÃ­do sus posts, termina con pregunta abierta)",
+  "customFollowup1": "follow-up 1 â dÃ­a 4 (mÃ¡x 80 palabras, Ã¡ngulo diferente: ahora sÃ­ puedes mencionar quÃ© hace Native de forma concisa, pero conectado a algo que Ã©l/ella mencionÃ³)",
+  "customFollowup2": "follow-up 2 â dÃ­a 8 (mÃ¡x 55 palabras, muy breve, admite que no ha respondido con humor suave, deja la puerta abierta)"
 }
 
-Responde SOLO con el JSON válido, sin texto adicional fuera de él.`;
+Responde SOLO con el JSON vÃ¡lido, sin texto adicional fuera de Ã©l.`;
 
   const response = await axios.post(
     'https://api.anthropic.com/v1/messages',
@@ -334,11 +332,11 @@ Responde SOLO con el JSON válido, sin texto adicional fuera de él.`;
   return JSON.parse(jsonMatch[0]);
 }
 
-// ─── LEMLIST: ACTUALIZAR LEAD ─────────────────────────────────────────────────
+// âââ LEMLIST: ACTUALIZAR LEAD âââââââââââââââââââââââââââââââââââââââââââââââââ
 
 async function updateLemlistLead(email, variables) {
   try {
-    // PATCH /api/leads/:email/variables — correct Lemlist endpoint for custom variables
+    // PATCH /api/leads/:email/variables â correct Lemlist endpoint for custom variables
     const updateRes = await axios.patch(
       `https://api.lemlist.com/api/leads/${encodeURIComponent(email)}/variables`,
       variables,
@@ -348,15 +346,15 @@ async function updateLemlistLead(email, variables) {
   } catch (err) {
     if (err.response?.status === 404) {
       console.log(`   Lead no encontrado en Lemlist: ${email}`);
-      if (err.response?.data) console.error(`   ❌ Lemlist 404 detail:`, JSON.stringify(err.response.data));
+      if (err.response?.data) console.error(`   â Lemlist 404 detail:`, JSON.stringify(err.response.data));
       return null;
     }
-    console.error(`   ❌ Lemlist PATCH error ${err.response?.status}:`, err.response?.data || err.message);
+    console.error(`   â Lemlist PATCH error ${err.response?.status}:`, err.response?.data || err.message);
     throw err;
   }
 }
 
-// ─── PROCESAMIENTO PRINCIPAL ──────────────────────────────────────────────────
+// âââ PROCESAMIENTO PRINCIPAL ââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 async function processNewContacts(results) {
   const processed = loadProcessed();
@@ -402,40 +400,40 @@ async function processNewContacts(results) {
     }
   }
 
-  console.log(`\n📋 Total contactos en resultados: ${Object.keys(contactMap).length}`);
-  console.log(`✅ Ya procesados: ${Object.keys(processed).length}`);
-  console.log(`🗺️  Leads en mapa LinkedIn→Email: ${Object.keys(lemlistEmailMap).length}`);
+  console.log(`\nð Total contactos en resultados: ${Object.keys(contactMap).length}`);
+  console.log(`â Ya procesados: ${Object.keys(processed).length}`);
+  console.log(`ðºï¸  Leads en mapa LinkedInâEmail: ${Object.keys(lemlistEmailMap).length}`);
 
   for (const [key, contact] of Object.entries(contactMap)) {
     if (processed[key]) continue;
 
-    // Resolver email: primero del CSV (vacío en Phantombuster), luego del mapa LinkedIn
+    // Resolver email: primero del CSV (vacÃ­o en Phantombuster), luego del mapa LinkedIn
     let email = contact.email;
     if (!email && contact.profileUrl) {
       email = resolveEmailFromLinkedIn(contact.profileUrl);
       if (email) {
         contact.email = email;
-        console.log(`\n🔗 Email resuelto para ${contact.firstName}: ${email}`);
+        console.log(`\nð Email resuelto para ${contact.firstName}: ${email}`);
       }
     }
 
-    console.log(`\n🔄 Procesando: ${contact.firstName} ${contact.lastName} | ${contact.profileUrl || email || 'sin ID'}`);
+    console.log(`\nð Procesando: ${contact.firstName} ${contact.lastName} | ${contact.profileUrl || email || 'sin ID'}`);
 
     // Verificar frescura de posts
     const postsAreRecent = hasRecentPosts(contact.posts, POST_FRESHNESS_DAYS);
     if (!postsAreRecent && contact.posts.length > 0) {
-      console.log(`   ⏰ Posts más antiguos de ${POST_FRESHNESS_DAYS} días → usando mensaje genérico`);
+      console.log(`   â° Posts mÃ¡s antiguos de ${POST_FRESHNESS_DAYS} dÃ­as â usando mensaje genÃ©rico`);
     }
 
     try {
       // 1. Generar mensajes con Claude
       const messages = await generatePersonalizedMessages(contact, postsAreRecent);
       if (messages.analysis) {
-        console.log(`   🧠 Tema: "${messages.analysis.centralTheme}"`);
-        console.log(`   🪝 Hook: "${messages.analysis.hook}"`);
-        console.log(`   🎯 Angulo Native: "${messages.analysis.nativeAngle}"`);
+        console.log(`   ð§  Tema: "${messages.analysis.centralTheme}"`);
+        console.log(`   ðª Hook: "${messages.analysis.hook}"`);
+        console.log(`   ð¯ Angulo Native: "${messages.analysis.nativeAngle}"`);
       }
-      console.log(`   ✍️  Mensajes generados por Claude`);
+      console.log(`   âï¸  Mensajes generados por Claude`);
 
       // 2. Actualizar Lemlist (si tenemos email)
       if (email) {
@@ -453,15 +451,15 @@ async function processNewContacts(results) {
           });
 
           if (lemlistResult) {
-            console.log(`   ✅ Lemlist actualizado: ${email}`);
+            console.log(`   â Lemlist actualizado: ${email}`);
           } else {
-            console.log(`   ⚠️  Lead no encontrado en Lemlist: ${email}`);
+            console.log(`   â ï¸  Lead no encontrado en Lemlist: ${email}`);
           }
         } catch (lemErr) {
-          console.error(`   ❌ Error actualizando Lemlist: ${lemErr.message}`);
+          console.error(`   â Error actualizando Lemlist: ${lemErr.message}`);
         }
       } else {
-        console.log(`   ⚠️  Sin email — no se actualizo Lemlist (profileUrl: ${contact.profileUrl})`);
+        console.log(`   â ï¸  Sin email â no se actualizo Lemlist (profileUrl: ${contact.profileUrl})`);
         noEmailCount++;
       }
 
@@ -480,8 +478,8 @@ async function processNewContacts(results) {
       await new Promise(r => setTimeout(r, 1000)); // Rate limiting
 
     } catch (err) {
-      console.error(`   ❌ Error procesando ${key}:`, err.message);
-      if (err.response?.data) console.error(`   ❌ API error detail:`, JSON.stringify(err.response.data));
+      console.error(`   â Error procesando ${key}:`, err.message);
+      if (err.response?.data) console.error(`   â API error detail:`, JSON.stringify(err.response.data));
       errorCount++;
     }
   }
@@ -495,7 +493,7 @@ async function processNewContacts(results) {
   };
 }
 
-// ─── RUTAS HTTP ───────────────────────────────────────────────────────────────
+// âââ RUTAS HTTP âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 // Health check
 app.get('/', (req, res) => {
@@ -510,19 +508,19 @@ app.get('/', (req, res) => {
   });
 });
 
-// Webhook principal — Phantombuster llama aquí al terminar cada run
+// Webhook principal â Phantombuster llama aquÃ­ al terminar cada run
 app.post('/webhook', async (req, res) => {
   const secret = req.headers['x-webhook-secret'] || req.query.secret;
   if (secret !== WEBHOOK_SECRET) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  console.log('\n🚀 Webhook recibido de Phantombuster:', new Date().toISOString());
+  console.log('\nð Webhook recibido de Phantombuster:', new Date().toISOString());
   res.json({ status: 'processing', message: 'Procesando resultados en background' });
 
   setImmediate(async () => {
     try {
-      // Refrescar mapa de emails si tiene más de 6 horas
+      // Refrescar mapa de emails si tiene mÃ¡s de 6 horas
       const sixHours = 6 * 60 * 60 * 1000;
       if (!lemlistMapBuiltAt || (Date.now() - lemlistMapBuiltAt.getTime()) > sixHours) {
         await buildLemlistEmailMap();
@@ -530,17 +528,17 @@ app.post('/webhook', async (req, res) => {
 
       const results = await fetchPhantombusterResults();
       if (!results || results.length === 0) {
-        console.log('⚠️  No se encontraron resultados CSV, intentando body del webhook...');
+        console.log('â ï¸  No se encontraron resultados CSV, intentando body del webhook...');
         if (req.body && Array.isArray(req.body.results)) {
           const stats = await processNewContacts(req.body.results);
-          console.log(`\n✅ Completado: ${stats.newCount} nuevos, ${stats.errorCount} errores, ${stats.noEmailCount} sin email`);
+          console.log(`\nâ Completado: ${stats.newCount} nuevos, ${stats.errorCount} errores, ${stats.noEmailCount} sin email`);
         }
         return;
       }
       const stats = await processNewContacts(results);
-      console.log(`\n✅ Completado: ${stats.newCount} nuevos, ${stats.errorCount} errores, ${stats.noEmailCount} sin email`);
+      console.log(`\nâ Completado: ${stats.newCount} nuevos, ${stats.errorCount} errores, ${stats.noEmailCount} sin email`);
     } catch (err) {
-      console.error('❌ Error en procesamiento:', err.message);
+      console.error('â Error en procesamiento:', err.message);
     }
   });
 });
@@ -553,7 +551,7 @@ app.post('/process', async (req, res) => {
   }
 
   try {
-    console.log('\n🔧 Trigger manual de procesamiento...');
+    console.log('\nð§ Trigger manual de procesamiento...');
     const results = await fetchPhantombusterResults();
     if (!results) {
       return res.status(404).json({ error: 'No se encontraron resultados en Phantombuster' });
@@ -561,7 +559,7 @@ app.post('/process', async (req, res) => {
     const stats = await processNewContacts(results);
     res.json({ success: true, ...stats });
   } catch (err) {
-    console.error('❌ Error:', err.message);
+    console.error('â Error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -585,7 +583,7 @@ app.post('/process-direct', async (req, res) => {
   }
 });
 
-// Forzar reconstrucción del mapa LinkedIn→Email
+// Forzar reconstrucciÃ³n del mapa LinkedInâEmail
 app.post('/rebuild-map', async (req, res) => {
   const secret = req.headers['x-webhook-secret'] || req.query.secret;
   if (secret !== WEBHOOK_SECRET) {
@@ -599,7 +597,7 @@ app.post('/rebuild-map', async (req, res) => {
   });
 });
 
-// Ver estadísticas de procesados
+// Ver estadÃ­sticas de procesados
 app.get('/stats', (req, res) => {
   const processed = loadProcessed();
   const list = Object.entries(processed);
@@ -624,7 +622,7 @@ app.get('/debug-lemlist', async (req, res) => {
   if (secret !== WEBHOOK_SECRET) return res.status(401).json({ error: 'Unauthorized' });
 
   try {
-    // 1. Obtener campañas
+    // 1. Obtener campaÃ±as
     const campsRes = await axios.get('https://api.lemlist.com/api/campaigns',
       { auth: { username: '', password: LEMLIST_API_KEY } });
     const master = (campsRes.data || []).find(c => c.name === 'Master Campaign 2.0');
@@ -658,16 +656,38 @@ app.get('/debug-lemlist', async (req, res) => {
   }
 });
 
-// ─── START ────────────────────────────────────────────────────────────────────
+// Debug: ver contactos GLOBALES de Lemlist (/api/leads)
+app.get('/debug-contacts', async (req, res) => {
+  const secret = req.headers['x-webhook-secret'] || req.query.secret;
+  if (secret !== WEBHOOK_SECRET) return res.status(401).json({ error: 'Unauthorized' });
+  try {
+    const resp = await axios.get('https://api.lemlist.com/api/leads', {
+      auth: { username: '', password: LEMLIST_API_KEY },
+      params: { limit: 20, offset: 0 }
+    });
+    const contacts = resp.data || [];
+    const sample = contacts.slice(0, 5).map(c => ({
+      email: c.email,
+      firstName: c.firstName,
+      lastName: c.lastName,
+      allFields: Object.keys(c)
+    }));
+    res.json({ total: contacts.length, sample, rawFirst: contacts[0] || null });
+  } catch (err) {
+    res.status(500).json({ error: err.message, status: err.response?.status, detail: err.response?.data });
+  }
+});
+
+// âââ START ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 app.listen(PORT, async () => {
-  console.log(`\n🎯 Native Outbound Server corriendo en puerto ${PORT}`);
+  console.log(`\nð¯ Native Outbound Server corriendo en puerto ${PORT}`);
   console.log(`   Webhook URL:     POST /webhook?secret=${WEBHOOK_SECRET}`);
   console.log(`   Process URL:     POST /process?secret=${WEBHOOK_SECRET}`);
   console.log(`   Direct Process:  POST /process-direct?secret=${WEBHOOK_SECRET}`);
   console.log(`   Rebuild Map:     POST /rebuild-map?secret=${WEBHOOK_SECRET}`);
   console.log(`   Stats URL:       GET  /stats`);
 
-  // Construir mapa LinkedIn→Email al iniciar
+  // Construir mapa LinkedInâEmail al iniciar
   await buildLemlistEmailMap();
 });
