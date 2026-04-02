@@ -241,7 +241,7 @@ Contenido completo:
     }).join('\n\n');
   }
 
-  const systemPrompt = `Eres un SDR senior especializado en ventas B2B consultivas para el canal tradicional (retail tradicional / trade) en LATAM.
+  const systemPrompt = `Eres un SDR senior lspecializado en ventas B2B consultivas para el canal tradicional (retail tradicional / trade) en LATAM.
 
 Representas a Native, plataforma de Computer Vision + AI Agents para marcas FMCG/CPG.
 
@@ -264,10 +264,10 @@ REGLAS DE ESCRITURA:
 - Primera línea: referencia directa y específica a algo de sus posts (o, si no hay posts recientes, referencia a su cargo/industria de forma concreta)
 - Email: máx 120 palabras, sin bullets, fluido como conversación
 - LinkedIn DM: máx 75 palabras, más casual y directo
-- Follow-ups: ángulos distintos, no repetir el mismo gancho
+- Follow-ups: ángulos distintos, no repetir l mismo gancho
 - NUNCA empieces con "Vi tu post sobre..." — sé más creativo
-- NUNCA menciones "Native" en el primer contacto — solo genera curiosidad
-- Idioma: detecta si escribe en español o inglés y úsalo
+- NUNCA menciones "Native" en el primer contacto 肀� solo genera curiosidad
+- Idioma: detecta si escribe en español o inglés y dúsalo
 
 SEÑALES DE PERSONALIZACIÓN REAL (al menos UNA por mensaje):
 • Citar una frase textual o parafrasearla de forma reconocible
@@ -275,7 +275,7 @@ SEÑALES DE PERSONALIZACIÓN REAL (al menos UNA por mensaje):
 • Mencionar un país/mercado específico que nombró
 • Aludir a un reto o aprendizaje que compartió`;
 
-  const userPrompt = `PROSPECTO:
+  const userPrompt = `PROSPECTM�:
 • Nombre: ${firstName} ${lastName}
 • Cargo: ${jobTitle || 'No especificado'}
 • Empresa: ${companyName || 'No especificada'}
@@ -290,7 +290,7 @@ ${postsText}
 ANÁLISIS PREVIO (piensa en voz alta antes de escribir):
 Antes de generar los mensajes, incluye brevemente en tu respuesta JSON un campo "analysis" con:
 - El tema central que identifiques
-- La frase/dato específico que usarás como gancho
+-- La frase/dato específico que usarás como gancho
 - El ángulo de Native más relevante para este perfil
 
 Luego genera los mensajes con exactamente estas claves:
@@ -338,9 +338,9 @@ Responde SOLO con el JSON válido, sin texto adicional fuera de él.`;
 
 async function updateLemlistLead(email, variables) {
   try {
-    // PATCH directly — Lemlist GET returns null for campaign-only leads
+    // PATCH /api/leads/:email/variables — correct Lemlist endpoint for custom variables
     const updateRes = await axios.patch(
-      `https://api.lemlist.com/api/leads/${encodeURIComponent(email)}`,
+      `https://api.lemlist.com/api/leads/${encodeURIComponent(email)}/variables`,
       variables,
       { auth: { username: '', password: LEMLIST_API_KEY } }
     );
@@ -348,8 +348,10 @@ async function updateLemlistLead(email, variables) {
   } catch (err) {
     if (err.response?.status === 404) {
       console.log(`   Lead no encontrado en Lemlist: ${email}`);
+      if (err.response?.data) console.error(`   ❌ Lemlist 404 detail:`, JSON.stringify(err.response.data));
       return null;
     }
+    console.error(`   ❌ Lemlist PATCH error ${err.response?.status}:`, err.response?.data || err.message);
     throw err;
   }
 }
@@ -614,6 +616,46 @@ app.get('/stats', (req, res) => {
     lemlistMapBuiltAt: lemlistMapBuiltAt ? lemlistMapBuiltAt.toISOString() : null,
     contacts: processed
   });
+});
+
+// Debug: obtener emails reales de Lemlist y probar PATCH variables
+app.get('/debug-lemlist', async (req, res) => {
+  const secret = req.headers['x-webhook-secret'] || req.query.secret;
+  if (secret !== WEBHOOK_SECRET) return res.status(401).json({ error: 'Unauthorized' });
+
+  try {
+    // 1. Obtener campañas
+    const campsRes = await axios.get('https://api.lemlist.com/api/campaigns',
+      { auth: { username: '', password: LEMLIST_API_KEY } });
+    const master = (campsRes.data || []).find(c => c.name === 'Master Campaign 2.0');
+    if (!master) return res.json({ error: 'Master Campaign 2.0 not found', campaigns: (campsRes.data || []).map(c => c.name) });
+
+    // 2. Obtener primeros 3 leads
+    const leadsRes = await axios.get(`https://api.lemlist.com/api/campaigns/${master._id}/leads`,
+      { auth: { username: '', password: LEMLIST_API_KEY }, params: { limit: 3, offset: 0 } });
+    const leads = leadsRes.data || [];
+    const emails = leads.map(l => l.email).filter(Boolean);
+
+    // 3. Probar PATCH /variables en el primer email
+    let patchResult = null;
+    let patchError = null;
+    if (emails[0]) {
+      try {
+        const pr = await axios.patch(
+          `https://api.lemlist.com/api/leads/${encodeURIComponent(emails[0])}/variables`,
+          { debugTest: 'patch_variables_test_' + Date.now() },
+          { auth: { username: '', password: LEMLIST_API_KEY } }
+        );
+        patchResult = pr.data;
+      } catch (e) {
+        patchError = { status: e.response?.status, data: e.response?.data, message: e.message };
+      }
+    }
+
+    res.json({ campaignId: master._id, emails, patchResult, patchError });
+  } catch (err) {
+    res.status(500).json({ error: err.message, detail: err.response?.data });
+  }
 });
 
 // ─── START ────────────────────────────────────────────────────────────────────
