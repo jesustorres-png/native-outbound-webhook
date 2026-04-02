@@ -64,7 +64,7 @@ function daysAgo(dateStr) {
     if (unit.startsWith('day'))   return num;
     if (unit.startsWith('week'))  return num * 7;
     if (unit.startsWith('month')) return num * 30;
-    if (unit.startsWith(year'))  return num * 365;
+    if (unit.startsWith('year'))  return num * 365;
   }
   return Infinity;
 }
