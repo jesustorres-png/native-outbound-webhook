@@ -241,7 +241,7 @@ Contenido completo:
     }).join('\n\n');
   }
 
-  const systemPrompt = `Eres un SDR senior lspecializado en ventas B2B consultivas para el canal tradicional (retail tradicional / trade) en LATAM.
+  const systemPrompt = `Eres un SDR senior especializado en ventas B2B consultivas para el canal tradicional (retail tradicional / trade) en LATAM.
 
 Representas a Native, plataforma de Computer Vision + AI Agents para marcas FMCG/CPG.
 
@@ -264,10 +264,10 @@ REGLAS DE ESCRITURA:
 - Primera línea: referencia directa y específica a algo de sus posts (o, si no hay posts recientes, referencia a su cargo/industria de forma concreta)
 - Email: máx 120 palabras, sin bullets, fluido como conversación
 - LinkedIn DM: máx 75 palabras, más casual y directo
-- Follow-ups: ángulos distintos, no repetir l mismo gancho
+- Follow-ups: ángulos distintos, no repetir el mismo gancho
 - NUNCA empieces con "Vi tu post sobre..." — sé más creativo
-- NUNCA menciones "Native" en el primer contacto 肀� solo genera curiosidad
-- Idioma: detecta si escribe en español o inglés y dúsalo
+- NUNCA menciones "Native" en el primer contacto — solo genera curiosidad
+- Idioma: detecta si escribe en español o inglés y úsalo
 
 SEÑALES DE PERSONALIZACIÓN REAL (al menos UNA por mensaje):
 • Citar una frase textual o parafrasearla de forma reconocible
@@ -275,7 +275,7 @@ SEÑALES DE PERSONALIZACIÓN REAL (al menos UNA por mensaje):
 • Mencionar un país/mercado específico que nombró
 • Aludir a un reto o aprendizaje que compartió`;
 
-  const userPrompt = `PROSPECTM�:
+  const userPrompt = `PROSPECTO:
 • Nombre: ${firstName} ${lastName}
 • Cargo: ${jobTitle || 'No especificado'}
 • Empresa: ${companyName || 'No especificada'}
@@ -290,7 +290,7 @@ ${postsText}
 ANÁLISIS PREVIO (piensa en voz alta antes de escribir):
 Antes de generar los mensajes, incluye brevemente en tu respuesta JSON un campo "analysis" con:
 - El tema central que identifiques
--- La frase/dato específico que usarás como gancho
+- La frase/dato específico que usarás como gancho
 - El ángulo de Native más relevante para este perfil
 
 Luego genera los mensajes con exactamente estas claves:
@@ -632,7 +632,7 @@ app.get('/debug-lemlist', async (req, res) => {
 
     // 2. Obtener primeros 3 leads
     const leadsRes = await axios.get(`https://api.lemlist.com/api/campaigns/${master._id}/leads`,
-      { auth: { username: '', password: LEMLIST_API_KEY }, params: { limit: 3, offset: 0 } });
+      { auth: { username: '', password: LEMLIST_API_KEY }, params: { limit: 100, offset: 0 } });
     const leads = leadsRes.data || [];
     const emails = leads.map(l => l.email).filter(Boolean);
 
@@ -652,7 +652,7 @@ app.get('/debug-lemlist', async (req, res) => {
       }
     }
 
-    res.json({ campaignId: master._id, emails, patchResult, patchError });
+    res.json({ campaignId: master._id, emails, patchResult, patchError, rawLeads: leads.slice(0, 2) });
   } catch (err) {
     res.status(500).json({ error: err.message, detail: err.response?.data });
   }
