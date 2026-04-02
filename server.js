@@ -483,6 +483,7 @@ async function processNewContacts(results) {
 
     } catch (err) {
       console.error(`   ❌ Error procesando ${key}:`, err.message);
+      if (err.response?.data) console.error(`   ❌ API error detail:`, JSON.stringify(err.response.data));
       errorCount++;
     }
   }
@@ -539,7 +540,7 @@ app.post('/webhook', async (req, res) => {
         return;
       }
       const stats = await processNewContacts(results);
-      console.log(`\n✅ Completado: ${stats.newCount} nuevos, ${stats.errorCount} errores, ${stats.noEmailCount} sin email`);
+      console.log(`\n✅ Completado: ${stats.newCount} nuevos, ${stats.errorCount} errores, ${stats.noEmailCount } sin email`);
     } catch (err) {
       console.error('❌ Error en procesamiento:', err.message);
     }
@@ -619,7 +620,7 @@ app.get('/stats', (req, res) => {
   });
 });
 
-// ─── START ────────────────────────────────────────────────────────────────────
+// ─── START ─────────────────────────────────────────────────────────────────────
 
 app.listen(PORT, async () => {
   console.log(`\n🎯 Native Outbound Server corriendo en puerto ${PORT}`);
@@ -627,7 +628,7 @@ app.listen(PORT, async () => {
   console.log(`   Process URL:     POST /process?secret=${WEBHOOK_SECRET}`);
   console.log(`   Direct Process:  POST /process-direct?secret=${WEBHOOK_SECRET}`);
   console.log(`   Rebuild Map:     POST /rebuild-map?secret=${WEBHOOK_SECRET}`);
-  console.log(`   Stats URL:       GET  /stats`);
+  console.log(`   Stats URL:       GET /stats`);
 
   // Construir mapa LinkedIn→Email al iniciar
   await buildLemlistEmailMap();
