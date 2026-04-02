@@ -80,7 +80,7 @@ function hasRecentPosts(posts, maxDaysOld) {
 let lemlistEmailMap = {}; // normalizedLinkedinUrl → email
 let lemlistMapBuiltAt = null;
 
-apync function buildLemlistEmailMap() {
+async function buildLemlistEmailMap() {
   console.log('\n📧 Construyendo mapa LinkedIn→Email desde Lemlist...');
   const map = {};
 
@@ -137,7 +137,7 @@ apync function buildLemlistEmailMap() {
       }
 
       if (totalFetched > 0) {
-        console.log(`   ${campaign.name}: ${totalFetched} leads cargados`);
+        console.log(`   ✅ ${campaign.name}: ${totalFetched} leads cargados`);
       }
 
       // Rate limit: pequeña pausa entre campañas
@@ -171,7 +171,7 @@ async function fetchPhantombusterResults() {
   const output = res.data.output || '';
 
   // Intentar obtener el CSV de resultados desde S3
-  const csvUrlMatch = output.match(/https:\/\/phantombuster\.s3[^\s]+\.csv/);
+  const csvUrlMatch = output.match(/https:\/\/phantombuster\.s3[^\s"]+\.csv/);
   if (!csvUrlMatch) {
     console.log('No CSV URL found in output, using JSON results from API');
     return null;
@@ -243,7 +243,7 @@ Contenido completo:
 
   const systemPrompt = `Eres un SDR senior especializado en ventas B2B consultivas para el canal tradicional (retail tradicional / trade) en LATAM.
 
-Representas a Native, plataforma de Computer Vision + AI Agents para marcas FMCG3 FMCG/CPG.
+Representas a Native, plataforma de Computer Vision + AI Agents para marcas FMCG/CPG.
 
 LO QUE HACE NATIVE (úsalo selectivamente, nunca todo junto):
 • Visibilidad del 100% del punto de venta tradicional mediante Computer Vision
