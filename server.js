@@ -337,25 +337,21 @@ Responde SOLO con el JSON válido, sin texto adicional fuera de él.`;
 // ─── LEMLIST: ACTUALIZAR LEAD ─────────────────────────────────────────────────
 
 async function updateLemlistLead(email, variables) {
-  // Primero verificar que el lead existe
-  const checkRes = await axios.get(
-    `https://api.lemlist.com/api/leads/${encodeURIComponent(email)}`,
-    { auth: { username: '', password: LEMLIST_API_KEY } }
-  );
-
-  if (!checkRes.data) {
-    console.log(`   Lead no encontrado en Lemlist: ${email}`);
-    return null;
+  try {
+    // PATCH directly — Lemlist GET returns null for campaign-only leads
+    const updateRes = await axios.patch(
+      `https://api.lemlist.com/api/leads/${encodeURIComponent(email)}`,
+      variables,
+      { auth: { username: '', password: LEMLIST_API_KEY } }
+    );
+    return updateRes.data;
+  } catch (err) {
+    if (err.response?.status === 404) {
+      console.log(`   Lead no encontrado en Lemlist: ${email}`);
+      return null;
+    }
+    throw err;
   }
-
-  // Actualizar las variables personalizadas
-  const updateRes = await axios.patch(
-    `https://api.lemlist.com/api/leads/${encodeURIComponent(email)}`,
-    variables,
-    { auth: { username: '', password: LEMLIST_API_KEY } }
-  );
-
-  return updateRes.data;
 }
 
 // ─── PROCESAMIENTO PRINCIPAL ──────────────────────────────────────────────────
@@ -540,7 +536,7 @@ app.post('/webhook', async (req, res) => {
         return;
       }
       const stats = await processNewContacts(results);
-      console.log(`\n✅ Completado: ${stats.newCount} nuevos, ${stats.errorCount} errores, ${stats.noEmailCount } sin email`);
+      console.log(`\n✅ Completado: ${stats.newCount} nuevos, ${stats.errorCount} errores, ${stats.noEmailCount} sin email`);
     } catch (err) {
       console.error('❌ Error en procesamiento:', err.message);
     }
@@ -620,7 +616,7 @@ app.get('/stats', (req, res) => {
   });
 });
 
-// ─── START ─────────────────────────────────────────────────────────────────────
+// ─── START ────────────────────────────────────────────────────────────────────
 
 app.listen(PORT, async () => {
   console.log(`\n🎯 Native Outbound Server corriendo en puerto ${PORT}`);
@@ -628,7 +624,7 @@ app.listen(PORT, async () => {
   console.log(`   Process URL:     POST /process?secret=${WEBHOOK_SECRET}`);
   console.log(`   Direct Process:  POST /process-direct?secret=${WEBHOOK_SECRET}`);
   console.log(`   Rebuild Map:     POST /rebuild-map?secret=${WEBHOOK_SECRET}`);
-  console.log(`   Stats URL:       GET /stats`);
+  console.log(`   Stats URL:       GET  /stats`);
 
   // Construir mapa LinkedIn→Email al iniciar
   await buildLemlistEmailMap();
