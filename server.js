@@ -54,7 +54,40 @@ function normalizeSalesNavUrl(url) {
   const match = url.match(/linkedin\.com\/sales\/lead\/([^,/?#\s]+)/i);
   if (match) return `salesnav:${match[1]}`;
   return '';
-}actEmailCache = {};
+}
+
+// Calcula los dÃ­as de antigÃ¼edad de una fecha
+function daysAgo(dateStr) {
+  if (!dateStr) return Infinity;
+  // Fechas absolutas: "2025-12-15", "Dec 15, 2025", ISO, etc.
+  const parsed = new Date(dateStr);
+  if (!isNaN(parsed.getTime())) {
+    return (Date.now() - parsed.getTime()) / (1000 * 60 * 60 * 24);
+  }
+  // Fechas relativas: "2 weeks ago", "1 month ago", "3 days ago"
+  const relMatch = dateStr.match(/(\d+)\s*(second|minute|hour|day|week|month|year)/i);
+  if (relMatch) {
+    const num = parseInt(relMatch[1]);
+    const unit = relMatch[2].toLowerCase();
+    if (unit.startsWith('second') || unit.startsWith('minute') || unit.startsWith('hour')) return 0;
+    if (unit.startsWith('day'))   return num;
+    if (unit.startsWith('week'))  return num * 7;
+    if (unit.startsWith('month')) return num * 30;
+    if (unit.startsWith(year'))  return num * 365;
+  }
+  return Infinity;
+}
+
+// Devuelve true si al menos un post es mÃ¡s reciente que maxDaysOld
+function hasRecentPosts(posts, maxDaysOld) {
+  if (!posts || posts.length === 0) return false;
+  return posts.some(p => daysAgo(p.postDate) <= maxDaysOld);
+}
+
+// â”€â”€â”€ LEMLIST CONTACT EÏOKUP (LinkedIn URL â†’ email) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+// Cache para evitar llamadas repetidas al API de contactos
+/ÇÈÛ]™Nˆ[šÙY[‹˜ÛÛKÚ[‹ÜÛYÈ8¡¤ˆ˜[ÜŽˆ[XZ[[˜ÛÛœÝÛÛ4actEmailCache = {};
 
 /**
  * Busca un contacto en LemCRM por nombre + verificaciÃ³n de LinkedIn URL.
@@ -769,4 +802,3 @@ app.listen(PORT, () => {
   console.log(`   Debug Contacts:  GET  /debug-contacts?secret=${WEBHOOK_SECRET}&search=nombre`);
   console.log(`   Contact lookup:  ON-DEMAND via api.lemlist.com/api/contacts (Basic auth, name search)`);
 });
-// redeploy 1775181245656
