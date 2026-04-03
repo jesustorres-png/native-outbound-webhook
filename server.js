@@ -163,8 +163,7 @@ async function fetchPhantombusterResults() {
   const url = `https://api.phantombuster.com/api/v2/agents/fetch-output?id=${PHANTOM_AGENT_ID}`;
   const res = await axios.get(url, {
     headers: {
-      'X-Phantombuster-Key': PHANTOMBUSTER_API_KEY,
-      'X-Phantombuster-Org': PHANTOMBUSTER_ORG
+      'X-Phantombuster-Key': PHANTOMBUSTER_API_KEY
     }
   });
 
