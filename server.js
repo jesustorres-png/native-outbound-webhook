@@ -1,5 +1,5 @@
 /**
- * Webhook Server: Phantombuster Ã¢ÂÂ Claude AI Ã¢ÂÂ Lemlist
+ * Webhook Server: Phantombuster ÃÂ¢ÃÂÃÂ Claude AI ÃÂ¢ÃÂÃÂ Lemlist
  * Genera mensajes outbound personalizados a partir de actividad LinkedIn
  */
 
@@ -11,7 +11,7 @@ const path = require('path');
 const app = express();
 app.use(express.json());
 
-// Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ CONFIG (se leen desde variables de entorno) Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
+// ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ CONFIG (se leen desde variables de entorno) ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ
 const ANTHROPIC_API_KEY  = process.env.ANTHROPIC_API_KEY;
 const LEMLIST_API_KEY    = process.env.LEMLIST_API_KEY;
 const PHANTOMBUSTER_ORG  = process.env.PHANTOMBUSTER_ORG  || '4237829874326193';
@@ -19,13 +19,13 @@ const PHANTOM_AGENT_ID   = process.env.PHANTOM_AGENT_ID   || '5621422771951702';
 const WEBHOOK_SECRET     = process.env.WEBHOOK_SECRET     || 'native-outbound-2026';
 const PORT               = process.env.PORT               || 3000;
 
-// POST_FRESHNESS_DAYS: posts mÃÂ¡s antiguos que esto se tratan como "sin contexto reciente"
+// POST_FRESHNESS_DAYS: posts mÃÂÃÂ¡s antiguos que esto se tratan como "sin contexto reciente"
 const POST_FRESHNESS_DAYS = parseInt(process.env.POST_FRESHNESS_DAYS || '60');
 
 // Archivo local para trackear contactos ya procesados
 const PROCESSED_FILE = path.join(__dirname, 'processed_contacts.json');
 
-// Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ HELPERS Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
+// ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ HELPERS ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ
 
 function loadProcessed() {
   try {
@@ -39,7 +39,7 @@ function saveProcessed(data) {
   fs.writeFileSync(PROCESSED_FILE, JSON.stringify(data, null, 2));
 }
 
-// Normaliza una URL de LinkedIn para comparaciÃÂ³n: extrae "linkedin.com/in/username"
+// Normaliza una URL de LinkedIn para comparaciÃÂÃÂ³n: extrae "linkedin.com/in/username"
 function normalizeLinkedinUrl(url) {
   if (!url || typeof url !== 'string') return '';
   const match = url.toLowerCase().match(/linkedin\.com\/in\/([^/?#\s]+)/);
@@ -47,7 +47,7 @@ function normalizeLinkedinUrl(url) {
   return '';
 }
 
-// Calcula los dÃÂ­as de antigÃÂ¼edad de una fecha
+// Calcula los dÃÂÃÂ­as de antigÃÂÃÂ¼edad de una fecha
 function daysAgo(dateStr) {
   if (!dateStr) return Infinity;
   // Fechas absolutas: "2025-12-15", "Dec 15, 2025", ISO, etc.
@@ -69,13 +69,13 @@ function daysAgo(dateStr) {
   return Infinity;
 }
 
-// Devuelve true si al menos un post es mÃÂ¡s reciente que maxDaysOld
+// Devuelve true si al menos un post es mÃÂÃÂ¡s reciente que maxDaysOld
 function hasRecentPosts(posts, maxDaysOld) {
   if (!posts || posts.length === 0) return false;
   return posts.some(p => daysAgo(p.postDate) <= maxDaysOld);
 }
 
-// Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ LEMLIST EMAIL MAP (LinkedIn URL Ã¢ÂÂ email) Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
+// ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ LEMLIST EMAIL MAP (LinkedIn URL ÃÂ¢ÃÂÃÂ email) ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ
 
 // Cache para evitar llamadas repetidas al API de contactos
 const contactEmailCache = {};
@@ -127,7 +127,7 @@ async function resolveEmailFromLinkedIn(profileUrl) {
   return await findContactByLinkedIn(profileUrl);
 }
 
-// Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ FETCH PHANTOMBUSTER RESULTS Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
+// ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ FETCH PHANTOMBUSTER RESULTS ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ
 
 async function fetchPhantombusterResults() {
   const url = `https://api.phantombuster.com/api/v2/agents/fetch-output?id=${PHANTOM_AGENT_ID}`;
@@ -176,7 +176,7 @@ function parseCsv(csvText) {
   });
 }
 
-// Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ CLAUDE AI: GENERAR MENSAJES PERSONALIZADOS Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
+// ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ CLAUDE AI: GENERAR MENSAJES PERSONALIZADOS ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ
 
 async function generatePersonalizedMessages(contact, postsAreRecent) {
   const { firstName, lastName, jobTitle, companyName, posts, profileUrl } = contact;
@@ -184,10 +184,10 @@ async function generatePersonalizedMessages(contact, postsAreRecent) {
   let postsText;
 
   if (!postsAreRecent || !posts || posts.length === 0) {
-    // Posts muy viejos o sin posts Ã¢ÂÂ contexto genÃÂ©rico
-    postsText = `Ã¢ÂÂ Ã¯Â¸Â  Sin actividad reciente disponible (posts >60 dÃÂ­as o sin posts)
-Ã¢ÂÂ Genera mensajes basados en su cargo y empresa. Menciona el canal tradicional de forma genÃÂ©rica.
-Ã¢ÂÂ NO inventes ni parafrasees posts especÃÂ­ficos que no tienes.`;
+    // Posts muy viejos o sin posts ÃÂ¢ÃÂÃÂ contexto genÃÂÃÂ©rico
+    postsText = `ÃÂ¢ÃÂÃÂ ÃÂ¯ÃÂ¸ÃÂ  Sin actividad reciente disponible (posts >60 dÃÂÃÂ­as o sin posts)
+ÃÂ¢ÃÂÃÂ Genera mensajes basados en su cargo y empresa. Menciona el canal tradicional de forma genÃÂÃÂ©rica.
+ÃÂ¢ÃÂÃÂ NO inventes ni parafrasees posts especÃÂÃÂ­ficos que no tienes.`;
   } else {
     postsText = posts.map((p, i) => {
       const engagement = [];
@@ -212,71 +212,71 @@ Contenido completo:
 
 Representas a Native, plataforma de Computer Vision + AI Agents para marcas FMCG/CPG.
 
-LO QUE HACE NATIVE (ÃÂºsalo selectivamente, nunca todo junto):
-Ã¢ÂÂ¢ Visibilidad del 100% del punto de venta tradicional mediante Computer Vision
-Ã¢ÂÂ¢ Detecta oportunidades de distribuciÃÂ³n, quiebre de stock y share of shelf en tiempo real
-Ã¢ÂÂ¢ Convierte datos granulares (tienda por tienda, SKU por SKU) en decisiones de ejecuciÃÂ³n
-Ã¢ÂÂ¢ Elimina puntos ciegos del canal: los equipos saben exactamente dÃÂ³nde y cuÃÂ¡ndo actuar
-Ã¢ÂÂ¢ Clientes activos en MÃÂ©xico, Colombia, PerÃÂº, Chile, Ecuador (canal tradicional)
+LO QUE HACE NATIVE (ÃÂÃÂºsalo selectivamente, nunca todo junto):
+ÃÂ¢ÃÂÃÂ¢ Visibilidad del 100% del punto de venta tradicional mediante Computer Vision
+ÃÂ¢ÃÂÃÂ¢ Detecta oportunidades de distribuciÃÂÃÂ³n, quiebre de stock y share of shelf en tiempo real
+ÃÂ¢ÃÂÃÂ¢ Convierte datos granulares (tienda por tienda, SKU por SKU) en decisiones de ejecuciÃÂÃÂ³n
+ÃÂ¢ÃÂÃÂ¢ Elimina puntos ciegos del canal: los equipos saben exactamente dÃÂÃÂ³nde y cuÃÂÃÂ¡ndo actuar
+ÃÂ¢ÃÂÃÂ¢ Clientes activos en MÃÂÃÂ©xico, Colombia, PerÃÂÃÂº, Chile, Ecuador (canal tradicional)
 
-TU MISIÃÂN: escribir mensajes que parezcan escritos a mano por alguien que REALMENTE leyÃÂ³ sus posts.
+TU MISIÃÂÃÂN: escribir mensajes que parezcan escritos a mano por alguien que REALMENTE leyÃÂÃÂ³ sus posts.
 
 PROCESO OBLIGATORIO antes de escribir:
-1. Identifica el TEMA CENTRAL que mueve a esta persona (ÃÂ¿quÃÂ© lo/la apasiona? ÃÂ¿quÃÂ© problema menciona?)
-2. Encuentra UNA frase, idea o dato especÃÂ­fico de sus posts que puedas mencionar literalmente
-3. Detecta su tono (tÃÂ©cnico, inspiracional, operativo, estratÃÂ©gico) y espÃÂ©jalo
-4. Conecta su preocupaciÃÂ³n real con el ÃÂ¡ngulo mÃÂ¡s relevante de Native (sin mencionar Native aÃÂºn)
+1. Identifica el TEMA CENTRAL que mueve a esta persona (ÃÂÃÂ¿quÃÂÃÂ© lo/la apasiona? ÃÂÃÂ¿quÃÂÃÂ© problema menciona?)
+2. Encuentra UNA frase, idea o dato especÃÂÃÂ­fico de sus posts que puedas mencionar literalmente
+3. Detecta su tono (tÃÂÃÂ©cnico, inspiracional, operativo, estratÃÂÃÂ©gico) y espÃÂÃÂ©jalo
+4. Conecta su preocupaciÃÂÃÂ³n real con el ÃÂÃÂ¡ngulo mÃÂÃÂ¡s relevante de Native (sin mencionar Native aÃÂÃÂºn)
 
 REGLAS DE ESCRITURA:
-- Primera lÃÂ­nea: referencia directa y especÃÂ­fica a algo de sus posts (o, si no hay posts recientes, referencia a su cargo/industria de forma concreta)
-- Email: mÃÂ¡x 120 palabras, sin bullets, fluido como conversaciÃÂ³n
-- LinkedIn DM: mÃÂ¡x 75 palabras, mÃÂ¡s casual y directo
-- Follow-ups: ÃÂ¡ngulos distintos, no repetir el mismo gancho
-- NUNCA empieces con "Vi tu post sobre..." Ã¢ÂÂ sÃÂ© mÃÂ¡s creativo
-- NUNCA menciones "Native" en el primer contacto Ã¢ÂÂ solo genera curiosidad
-- Idioma: detecta si escribe en espaÃÂ±ol o inglÃÂ©s y ÃÂºsalo
+- Primera lÃÂÃÂ­nea: referencia directa y especÃÂÃÂ­fica a algo de sus posts (o, si no hay posts recientes, referencia a su cargo/industria de forma concreta)
+- Email: mÃÂÃÂ¡x 120 palabras, sin bullets, fluido como conversaciÃÂÃÂ³n
+- LinkedIn DM: mÃÂÃÂ¡x 75 palabras, mÃÂÃÂ¡s casual y directo
+- Follow-ups: ÃÂÃÂ¡ngulos distintos, no repetir el mismo gancho
+- NUNCA empieces con "Vi tu post sobre..." ÃÂ¢ÃÂÃÂ sÃÂÃÂ© mÃÂÃÂ¡s creativo
+- NUNCA menciones "Native" en el primer contacto ÃÂ¢ÃÂÃÂ solo genera curiosidad
+- Idioma: detecta si escribe en espaÃÂÃÂ±ol o inglÃÂÃÂ©s y ÃÂÃÂºsalo
 
-SEÃÂALES DE PERSONALIZACIÃÂN REAL (al menos UNA por mensaje):
-Ã¢ÂÂ¢ Citar una frase textual o parafrasearla de forma reconocible
-Ã¢ÂÂ¢ Referenciar un resultado o mÃÂ©trica que mencionÃÂ³
-Ã¢ÂÂ¢ Mencionar un paÃÂ­s/mercado especÃÂ­fico que nombrÃÂ³
-Ã¢ÂÂ¢ Aludir a un reto o aprendizaje que compartiÃÂ³`;
+SEÃÂÃÂALES DE PERSONALIZACIÃÂÃÂN REAL (al menos UNA por mensaje):
+ÃÂ¢ÃÂÃÂ¢ Citar una frase textual o parafrasearla de forma reconocible
+ÃÂ¢ÃÂÃÂ¢ Referenciar un resultado o mÃÂÃÂ©trica que mencionÃÂÃÂ³
+ÃÂ¢ÃÂÃÂ¢ Mencionar un paÃÂÃÂ­s/mercado especÃÂÃÂ­fico que nombrÃÂÃÂ³
+ÃÂ¢ÃÂÃÂ¢ Aludir a un reto o aprendizaje que compartiÃÂÃÂ³`;
 
   const userPrompt = `PROSPECTO:
-Ã¢ÂÂ¢ Nombre: ${firstName} ${lastName}
-Ã¢ÂÂ¢ Cargo: ${jobTitle || 'No especificado'}
-Ã¢ÂÂ¢ Empresa: ${companyName || 'No especificada'}
-Ã¢ÂÂ¢ LinkedIn: ${profileUrl || 'N/A'}
+ÃÂ¢ÃÂÃÂ¢ Nombre: ${firstName} ${lastName}
+ÃÂ¢ÃÂÃÂ¢ Cargo: ${jobTitle || 'No especificado'}
+ÃÂ¢ÃÂÃÂ¢ Empresa: ${companyName || 'No especificada'}
+ÃÂ¢ÃÂÃÂ¢ LinkedIn: ${profileUrl || 'N/A'}
 
-Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
-ACTIVIDAD LINKEDIN RECIENTE (LEE CON ATENCIÃÂN):
-Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
+ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ
+ACTIVIDAD LINKEDIN RECIENTE (LEE CON ATENCIÃÂÃÂN):
+ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ
 ${postsText}
 
-Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
-ANÃÂLISIS PREVIO (piensa en voz alta antes de escribir):
+ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ
+ANÃÂÃÂLISIS PREVIO (piensa en voz alta antes de escribir):
 Antes de generar los mensajes, incluye brevemente en tu respuesta JSON un campo "analysis" con:
 - El tema central que identifiques
-- La frase/dato especÃÂ­fico que usarÃÂ¡s como gancho
-- El ÃÂ¡ngulo de Native mÃÂ¡s relevante para este perfil
+- La frase/dato especÃÂÃÂ­fico que usarÃÂÃÂ¡s como gancho
+- El ÃÂÃÂ¡ngulo de Native mÃÂÃÂ¡s relevante para este perfil
 
 Luego genera los mensajes con exactamente estas claves:
-Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
+ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ
 
 {
   "analysis": {
-    "centralTheme": "ÃÂ¿de quÃÂ© trata principalmente su actividad?",
-    "hook": "la frase/dato especÃÂ­fico que usarÃÂ¡s",
-    "nativeAngle": "quÃÂ© aspecto de Native conecta mejor con este perfil"
+    "centralTheme": "ÃÂÃÂ¿de quÃÂÃÂ© trata principalmente su actividad?",
+    "hook": "la frase/dato especÃÂÃÂ­fico que usarÃÂÃÂ¡s",
+    "nativeAngle": "quÃÂÃÂ© aspecto de Native conecta mejor con este perfil"
   },
-  "customSubject": "asunto del email (mÃÂ¡x 55 chars, sin clickbait, que genere curiosidad real Ã¢ÂÂ puede referenciar algo de sus posts)",
-  "customEmailBody": "cuerpo del email (mÃÂ¡x 120 palabras, primera lÃÂ­nea con referencia especÃÂ­fica a sus posts, segunda parte abre una pregunta o tensiÃÂ³n relevante para su rol, cierre con CTA suave)",
-  "customLinkedinDm": "mensaje directo LinkedIn (mÃÂ¡x 75 palabras, tono mÃÂ¡s casual, como si ya se conocieran de haber leÃÂ­do sus posts, termina con pregunta abierta)",
-  "customFollowup1": "follow-up 1 Ã¢ÂÂ dÃÂ­a 4 (mÃÂ¡x 80 palabras, ÃÂ¡ngulo diferente: ahora sÃÂ­ puedes mencionar quÃÂ© hace Native de forma concisa, pero conectado a algo que ÃÂ©l/ella mencionÃÂ³)",
-  "customFollowup2": "follow-up 2 Ã¢ÂÂ dÃÂ­a 8 (mÃÂ¡x 55 palabras, muy breve, admite que no ha respondido con humor suave, deja la puerta abierta)"
+  "customSubject": "asunto del email (mÃÂÃÂ¡x 55 chars, sin clickbait, que genere curiosidad real ÃÂ¢ÃÂÃÂ puede referenciar algo de sus posts)",
+  "customEmailBody": "cuerpo del email (mÃÂÃÂ¡x 120 palabras, primera lÃÂÃÂ­nea con referencia especÃÂÃÂ­fica a sus posts, segunda parte abre una pregunta o tensiÃÂÃÂ³n relevante para su rol, cierre con CTA suave)",
+  "customLinkedinDm": "mensaje directo LinkedIn (mÃÂÃÂ¡x 75 palabras, tono mÃÂÃÂ¡s casual, como si ya se conocieran de haber leÃÂÃÂ­do sus posts, termina con pregunta abierta)",
+  "customFollowup1": "follow-up 1 ÃÂ¢ÃÂÃÂ dÃÂÃÂ­a 4 (mÃÂÃÂ¡x 80 palabras, ÃÂÃÂ¡ngulo diferente: ahora sÃÂÃÂ­ puedes mencionar quÃÂÃÂ© hace Native de forma concisa, pero conectado a algo que ÃÂÃÂ©l/ella mencionÃÂÃÂ³)",
+  "customFollowup2": "follow-up 2 ÃÂ¢ÃÂÃÂ dÃÂÃÂ­a 8 (mÃÂÃÂ¡x 55 palabras, muy breve, admite que no ha respondido con humor suave, deja la puerta abierta)"
 }
 
-Responde SOLO con el JSON vÃÂ¡lido, sin texto adicional fuera de ÃÂ©l.`;
+Responde SOLO con el JSON vÃÂÃÂ¡lido, sin texto adicional fuera de ÃÂÃÂ©l.`;
 
   const response = await axios.post(
     'https://api.anthropic.com/v1/messages',
@@ -301,11 +301,11 @@ Responde SOLO con el JSON vÃÂ¡lido, sin texto adicional fuera de ÃÂ©l.
   return JSON.parse(jsonMatch[0]);
 }
 
-// Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ LEMLIST: ACTUALIZAR LEAD Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
+// ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ LEMLIST: ACTUALIZAR LEAD ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ
 
 async function updateLemlistLead(email, variables) {
   try {
-    // PATCH /api/leads/:email/variables Ã¢ÂÂ correct Lemlist endpoint for custom variables
+    // PATCH /api/leads/:email/variables ÃÂ¢ÃÂÃÂ correct Lemlist endpoint for custom variables
     const updateRes = await axios.patch(
       `https://api.lemlist.com/api/leads/${encodeURIComponent(email)}/variables`,
       variables,
@@ -315,15 +315,15 @@ async function updateLemlistLead(email, variables) {
   } catch (err) {
     if (err.response?.status === 404) {
       console.log(`   Lead no encontrado en Lemlist: ${email}`);
-      if (err.response?.data) console.error(`   Ã¢ÂÂ Lemlist 404 detail:`, JSON.stringify(err.response.data));
+      if (err.response?.data) console.error(`   ÃÂ¢ÃÂÃÂ Lemlist 404 detail:`, JSON.stringify(err.response.data));
       return null;
     }
-    console.error(`   Ã¢ÂÂ Lemlist PATCH error ${err.response?.status}:`, err.response?.data || err.message);
+    console.error(`   ÃÂ¢ÃÂÃÂ Lemlist PATCH error ${err.response?.status}:`, err.response?.data || err.message);
     throw err;
   }
 }
 
-// Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ PROCESAMIENTO PRINCIPAL Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
+// ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ PROCESAMIENTO PRINCIPAL ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ
 
 async function processNewContacts(results) {
   const processed = loadProcessed();
@@ -369,40 +369,40 @@ async function processNewContacts(results) {
     }
   }
 
-  console.log(`\nÃ°ÂÂÂ Total contactos en resultados: ${Object.keys(contactMap).length}`);
-  console.log(`Ã¢ÂÂ Ya procesados: ${Object.keys(processed).length}`);
-  console.log(`🗺️  Contactos en cache LinkedIn→Email: ${Object.keys(contactEmailCache).length}`);
+  console.log(`\nÃÂ°ÃÂÃÂÃÂ Total contactos en resultados: ${Object.keys(contactMap).length}`);
+  console.log(`ÃÂ¢ÃÂÃÂ Ya procesados: ${Object.keys(processed).length}`);
+  console.log(`ðºï¸  Contactos en cache LinkedInâEmail: ${Object.keys(contactEmailCache).length}`);
 
   for (const [key, contact] of Object.entries(contactMap)) {
     if (processed[key]) continue;
 
-    // Resolver email: primero del CSV (vacÃÂ­o en Phantombuster), luego del mapa LinkedIn
+    // Resolver email: primero del CSV (vacÃÂÃÂ­o en Phantombuster), luego del mapa LinkedIn
     let email = contact.email;
     if (!email && contact.profileUrl) {
       email = await resolveEmailFromLinkedIn(contact.profileUrl);
       if (email) {
         contact.email = email;
-        console.log(`\nÃ°ÂÂÂ Email resuelto para ${contact.firstName}: ${email}`);
+        console.log(`\nÃÂ°ÃÂÃÂÃÂ Email resuelto para ${contact.firstName}: ${email}`);
       }
     }
 
-    console.log(`\nÃ°ÂÂÂ Procesando: ${contact.firstName} ${contact.lastName} | ${contact.profileUrl || email || 'sin ID'}`);
+    console.log(`\nÃÂ°ÃÂÃÂÃÂ Procesando: ${contact.firstName} ${contact.lastName} | ${contact.profileUrl || email || 'sin ID'}`);
 
     // Verificar frescura de posts
     const postsAreRecent = hasRecentPosts(contact.posts, POST_FRESHNESS_DAYS);
     if (!postsAreRecent && contact.posts.length > 0) {
-      console.log(`   Ã¢ÂÂ° Posts mÃÂ¡s antiguos de ${POST_FRESHNESS_DAYS} dÃÂ­as Ã¢ÂÂ usando mensaje genÃÂ©rico`);
+      console.log(`   ÃÂ¢ÃÂÃÂ° Posts mÃÂÃÂ¡s antiguos de ${POST_FRESHNESS_DAYS} dÃÂÃÂ­as ÃÂ¢ÃÂÃÂ usando mensaje genÃÂÃÂ©rico`);
     }
 
     try {
       // 1. Generar mensajes con Claude
       const messages = await generatePersonalizedMessages(contact, postsAreRecent);
       if (messages.analysis) {
-        console.log(`   Ã°ÂÂ§Â  Tema: "${messages.analysis.centralTheme}"`);
-        console.log(`   Ã°ÂÂªÂ Hook: "${messages.analysis.hook}"`);
-        console.log(`   Ã°ÂÂÂ¯ Angulo Native: "${messages.analysis.nativeAngle}"`);
+        console.log(`   ÃÂ°ÃÂÃÂ§ÃÂ  Tema: "${messages.analysis.centralTheme}"`);
+        console.log(`   ÃÂ°ÃÂÃÂªÃÂ Hook: "${messages.analysis.hook}"`);
+        console.log(`   ÃÂ°ÃÂÃÂÃÂ¯ Angulo Native: "${messages.analysis.nativeAngle}"`);
       }
-      console.log(`   Ã¢ÂÂÃ¯Â¸Â  Mensajes generados por Claude`);
+      console.log(`   ÃÂ¢ÃÂÃÂÃÂ¯ÃÂ¸ÃÂ  Mensajes generados por Claude`);
 
       // 2. Actualizar Lemlist (si tenemos email)
       if (email) {
@@ -420,15 +420,15 @@ async function processNewContacts(results) {
           });
 
           if (lemlistResult) {
-            console.log(`   Ã¢ÂÂ Lemlist actualizado: ${email}`);
+            console.log(`   ÃÂ¢ÃÂÃÂ Lemlist actualizado: ${email}`);
           } else {
-            console.log(`   Ã¢ÂÂ Ã¯Â¸Â  Lead no encontrado en Lemlist: ${email}`);
+            console.log(`   ÃÂ¢ÃÂÃÂ ÃÂ¯ÃÂ¸ÃÂ  Lead no encontrado en Lemlist: ${email}`);
           }
         } catch (lemErr) {
-          console.error(`   Ã¢ÂÂ Error actualizando Lemlist: ${lemErr.message}`);
+          console.error(`   ÃÂ¢ÃÂÃÂ Error actualizando Lemlist: ${lemErr.message}`);
         }
       } else {
-        console.log(`   Ã¢ÂÂ Ã¯Â¸Â  Sin email Ã¢ÂÂ no se actualizo Lemlist (profileUrl: ${contact.profileUrl})`);
+        console.log(`   ÃÂ¢ÃÂÃÂ ÃÂ¯ÃÂ¸ÃÂ  Sin email ÃÂ¢ÃÂÃÂ no se actualizo Lemlist (profileUrl: ${contact.profileUrl})`);
         noEmailCount++;
       }
 
@@ -447,8 +447,8 @@ async function processNewContacts(results) {
       await new Promise(r => setTimeout(r, 1000)); // Rate limiting
 
     } catch (err) {
-      console.error(`   Ã¢ÂÂ Error procesando ${key}:`, err.message);
-      if (err.response?.data) console.error(`   Ã¢ÂÂ API error detail:`, JSON.stringify(err.response.data));
+      console.error(`   ÃÂ¢ÃÂÃÂ Error procesando ${key}:`, err.message);
+      if (err.response?.data) console.error(`   ÃÂ¢ÃÂÃÂ API error detail:`, JSON.stringify(err.response.data));
       errorCount++;
     }
   }
@@ -462,7 +462,7 @@ async function processNewContacts(results) {
   };
 }
 
-// Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ RUTAS HTTP Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
+// ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ RUTAS HTTP ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ
 
 // Health check
 app.get('/', (req, res) => {
@@ -473,35 +473,35 @@ app.get('/', (req, res) => {
     ts: new Date().toISOString(),
     totalProcessed: Object.keys(processed).length,
     contactCacheSize: Object.keys(contactEmailCache).length,
-    lemlistMapBuiltAt: lemlistMapBuiltAt ? lemlistMapBuiltAt.toISOString() : null
+    contactCacheSize: Object.keys(contactEmailCache).length
   });
 });
 
-// Webhook principal Ã¢ÂÂ Phantombuster llama aquÃÂ­ al terminar cada run
+// Webhook principal ÃÂ¢ÃÂÃÂ Phantombuster llama aquÃÂÃÂ­ al terminar cada run
 app.post('/webhook', async (req, res) => {
   const secret = req.headers['x-webhook-secret'] || req.query.secret;
   if (secret !== WEBHOOK_SECRET) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  console.log('\nÃ°ÂÂÂ Webhook recibido de Phantombuster:', new Date().toISOString());
+  console.log('\nÃÂ°ÃÂÃÂÃÂ Webhook recibido de Phantombuster:', new Date().toISOString());
   res.json({ status: 'processing', message: 'Procesando resultados en background' });
 
   setImmediate(async () => {
     try {
       const results = await fetchPhantombusterResults();
       if (!results || results.length === 0) {
-        console.log('Ã¢ÂÂ Ã¯Â¸Â  No se encontraron resultados CSV, intentando body del webhook...');
+        console.log('ÃÂ¢ÃÂÃÂ ÃÂ¯ÃÂ¸ÃÂ  No se encontraron resultados CSV, intentando body del webhook...');
         if (req.body && Array.isArray(req.body.results)) {
           const stats = await processNewContacts(req.body.results);
-          console.log(`\nÃ¢ÂÂ Completado: ${stats.newCount} nuevos, ${stats.errorCount} errores, ${stats.noEmailCount} sin email`);
+          console.log(`\nÃÂ¢ÃÂÃÂ Completado: ${stats.newCount} nuevos, ${stats.errorCount} errores, ${stats.noEmailCount} sin email`);
         }
         return;
       }
       const stats = await processNewContacts(results);
-      console.log(`\nÃ¢ÂÂ Completado: ${stats.newCount} nuevos, ${stats.errorCount} errores, ${stats.noEmailCount} sin email`);
+      console.log(`\nÃÂ¢ÃÂÃÂ Completado: ${stats.newCount} nuevos, ${stats.errorCount} errores, ${stats.noEmailCount} sin email`);
     } catch (err) {
-      console.error('Ã¢ÂÂ Error en procesamiento:', err.message);
+      console.error('ÃÂ¢ÃÂÃÂ Error en procesamiento:', err.message);
     }
   });
 });
@@ -514,7 +514,7 @@ app.post('/process', async (req, res) => {
   }
 
   try {
-    console.log('\nÃ°ÂÂÂ§ Trigger manual de procesamiento...');
+    console.log('\nÃÂ°ÃÂÃÂÃÂ§ Trigger manual de procesamiento...');
     const results = await fetchPhantombusterResults();
     if (!results) {
       return res.status(404).json({ error: 'No se encontraron resultados en Phantombuster' });
@@ -522,7 +522,7 @@ app.post('/process', async (req, res) => {
     const stats = await processNewContacts(results);
     res.json({ success: true, ...stats });
   } catch (err) {
-    console.error('Ã¢ÂÂ Error:', err.message);
+    console.error('ÃÂ¢ÃÂÃÂ Error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -563,7 +563,7 @@ app.post('/rebuild-map', async (req, res) => {
 
 
 
-// Ver estadÃÂ­sticas de procesados
+// Ver estadÃÂÃÂ­sticas de procesados
 app.get('/stats', (req, res) => {
   const processed = loadProcessed();
   const list = Object.entries(processed);
@@ -576,7 +576,7 @@ app.get('/stats', (req, res) => {
     lemlistUpdated: withEmail,
     noEmail:        withoutEmail,
     freshPosts,
-    lemlistMapSize: Object.keys(lemlistEmailMap).length,
+    
     
     contacts: processed
   });
@@ -588,7 +588,7 @@ app.get('/debug-lemlist', async (req, res) => {
   if (secret !== WEBHOOK_SECRET) return res.status(401).json({ error: 'Unauthorized' });
 
   try {
-    // 1. Obtener campaÃÂ±as
+    // 1. Obtener campaÃÂÃÂ±as
     const campsRes = await axios.get('https://api.lemlist.com/api/campaigns',
       { auth: { username: '', password: LEMLIST_API_KEY } });
     const master = (campsRes.data || []).find(c => c.name === 'Master Campaign 2.0');
@@ -646,10 +646,10 @@ app.get('/debug-contacts', async (req, res) => {
 });
 
 
-// Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂ START Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
+// ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ START ÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂÃÂ¢ÃÂÃÂ
 
 app.listen(PORT, async () => {
-  console.log(`\nÃ°ÂÂÂ¯ Native Outbound Server corriendo en puerto ${PORT}`);
+  console.log(`\nÃÂ°ÃÂÃÂÃÂ¯ Native Outbound Server corriendo en puerto ${PORT}`);
   console.log(`   Webhook URL:     POST /webhook?secret=${WEBHOOK_SECRET}`);
   console.log(`   Process URL:     POST /process?secret=${WEBHOOK_SECRET}`);
   console.log(`   Direct Process:  POST /process-direct?secret=${WEBHOOK_SECRET}`);
