@@ -14,6 +14,7 @@ app.use(express.json());
 // ─── CONFIG (se leen desde variables de entorno) ─────────────────────────────
 const ANTHROPIC_API_KEY  = process.env.ANTHROPIC_API_KEY;
 const LEMLIST_API_KEY    = process.env.LEMLIST_API_KEY;
+const PHANTOMBUSTER_API_KEY = process.env.PHANTOMBUSTER_API_KEY;
 const PHANTOMBUSTER_ORG  = process.env.PHANTOMBUSTER_ORG  || '4237829874326193';
 const PHANTOM_AGENT_ID   = process.env.PHANTOM_AGENT_ID   || '5621422771951702';
 const WEBHOOK_SECRET     = process.env.WEBHOOK_SECRET     || 'native-outbound-2026';
@@ -47,15 +48,6 @@ function normalizeLinkedinUrl(url) {
   return '';
 }
 
-// Normaliza una URL de LinkedIn Sales Navigator: extrae el entity ID
-// Ej: "https://www.linkedin.com/sales/lead/ACwAAB-DYL0B..." → "salesnav:ACwAAB-DYL0B"
-function normalizeSalesNavUrl(url) {
-  if (!url || typeof url !== 'string') return '';
-  const match = url.match(/linkedin\.com\/sales\/lead\/([^,/?#\s]+)/i);
-  if (match) return `salesnav:${match[1]}`;
-  return '';
-}
-
 // Calcula los días de antigüedad de una fecha
 function daysAgo(dateStr) {
   if (!dateStr) return Infinity;
@@ -73,7 +65,7 @@ function daysAgo(dateStr) {
     if (unit.startsWith('day'))   return num;
     if (unit.startsWith('week'))  return num * 7;
     if (unit.startsWith('month')) return num * 30;
-    if (unit.startsWith(year'))  return num * 365;
+    if (unit.startsWith('year'))  return num * 365;
   }
   return Infinity;
 }
@@ -84,10 +76,11 @@ function hasRecentPosts(posts, maxDaysOld) {
   return posts.some(p => daysAgo(p.postDate) <= maxDaysOld);
 }
 
-// ─── LEMLIST CONTACT E�OKUP (LinkedIn URL → email) ────────────────────────────
+// ─── LEMLIST CONTACT LOOKUP (LinkedIn URL → email) ────────────────────────────
 
 // Cache para evitar llamadas repetidas al API de contactos
-/���]�N�[��Y[����K�[���Y�8����[܎�[XZ[�[��ۜ��۝4actEmailCache = {};
+// Clave: linkedin.com/in/slug  → Valor: email | null
+const contactEmailCache = {};
 
 /**
  * Busca un contacto en LemCRM por nombre + verificación de LinkedIn URL.
@@ -102,11 +95,10 @@ function hasRecentPosts(posts, maxDaysOld) {
  *   3. Cachea resultado (incluyendo null) para evitar re-llamadas
  */
 async function findContact(profileUrl, firstName, lastName) {
-  const normalized    = normalizeLinkedinUrl(profileUrl);
-  const normalizedSN  = normalizeSalesNavUrl(profileUrl);
+  const normalized = normalizeLinkedinUrl(profileUrl);
 
   // Cache hit (null también se cachea para evitar re-intentos)
-  const cacheKey = normalized || normalizedSN || `${firstName}|${lastName}`.toLowerCase();
+  const cacheKey = normalized || `${firstName}|${lastName}`.toLowerCase();
   if (Object.prototype.hasOwnProperty.call(contactEmailCache, cacheKey)) {
     return contactEmailCache[cacheKey];
   }
@@ -130,19 +122,12 @@ async function findContact(profileUrl, firstName, lastName) {
       ? resp.data
       : (Array.isArray(resp.data?.contacts) ? resp.data.contacts : []);
 
-    // 1. Intentar match exacto por LinkedIn URL (regular o Sales Navigator)
+    // 1. Intentar match exacto por LinkedIn URL
     let found = null;
-    if (normalized || normalizedSN) {
+    if (normalized) {
       found = contacts.find(c => {
-        // Comparar contra linkedinUrl (URL regular)
-        const cRegular = c.linkedinUrl || c.linkedin || c.linkedInUrl || c.linkedinProfile || '';
-        if (normalized && normalizeLinkedinUrl(cRegular) === normalized) return true;
-        // Comparar contra linkedinUrlSalesNav (Sales Navigator)
-        const cSalesNav = c.linkedinUrlSalesNav || c.salesNavUrl || '';
-        if (normalizedSN && normalizeSalesNavUrl(cSalesNav) === normalizedSN) return true;
-        // Comparar cruzado: profileUrl regular contra SalesNav del contacto, o viceversa
-        if (normalized && normalizeSalesNavUrl(cSalesNav) && false) return false; // future
-        return false;
+        const cUrl = c.linkedinUrl || c.linkedin || c.linkedInUrl || c.linkedinProfile || '';
+        return normalizeLinkedinUrl(cUrl) === normalized;
       });
     }
 
@@ -177,7 +162,10 @@ async function resolveEmailFromLinkedIn(profileUrl, firstName, lastName) {
 async function fetchPhantombusterResults() {
   const url = `https://api.phantombuster.com/api/v2/agents/fetch-output?id=${PHANTOM_AGENT_ID}`;
   const res = await axios.get(url, {
-    headers: { 'X-Phantombuster-Org': PHANTOMBUSTER_ORG }
+    headers: {
+      'X-Phantombuster-Key': PHANTOMBUSTER_API_KEY,
+      'X-Phantombuster-Org': PHANTOMBUSTER_ORG
+    }
   });
 
   const output = res.data.output || '';
@@ -689,13 +677,12 @@ app.get('/debug-contacts', async (req, res) => {
       : (Array.isArray(resp.data?.contacts) ? resp.data.contacts : []);
 
     const sample = contacts.slice(0, 5).map(c => ({
-      email:               c.email,
-      firstName:           c.firstName,
-      lastName:            c.lastName,
-      linkedinUrl:         c.linkedinUrl || c.linkedin || c.linkedInUrl || null,
-      linkedinUrlSalesNav: c.linkedinUrlSalesNav || null,
-      jobTitle:            c.jobTitle || null,
-      companyId:           c.companyId || null
+      email:       c.email,
+      firstName:   c.firstName,
+      lastName:    c.lastName,
+      linkedinUrl: c.linkedinUrl || c.linkedin || c.linkedInUrl || null,
+      jobTitle:    c.jobTitle || null,
+      companyId:   c.companyId || null
     }));
 
     res.json({
@@ -707,86 +694,6 @@ app.get('/debug-contacts', async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ error: err.message, status: err.response?.status, detail: err.response?.data });
-  }
-});
-
-// Lista leads de una campaña con sus datos completos de contacto (email, LinkedIn, Sales Nav)
-// GET /list-campaign-contacts?secret=...&campaign=Master+Campaign+2.0&limit=20
-app.get('/list-campaign-contacts', async (req, res) => {
-  const secret = req.headers['x-webhook-secret'] || req.query.secret;
-  if (secret !== WEBHOOK_SECRET) return res.status(401).json({ error: 'Unauthorized' });
-
-  const campaignName = req.query.campaign || 'Master Campaign 2.0';
-  const limit = parseInt(req.query.limit || '20');
-  const auth = { username: '', password: LEMLIST_API_KEY };
-
-  try {
-    // 1. Encontrar la campaña
-    const campsRes = await axios.get('https://api.lemlist.com/api/campaigns', { auth });
-    const campaign = (campsRes.data || []).find(c => c.name === campaignName);
-    if (!campaign) {
-      return res.json({
-        error: `Campaña "${campaignName}" no encontrada`,
-        available: (campsRes.data || []).map(c => c.name)
-      });
-    }
-
-    // 2. Obtener leads de la campaña
-    const leadsRes = await axios.get(
-      `https://api.lemlist.com/api/campaigns/${campaign._id}/leads`,
-      { auth, params: { limit: limit + 20, offset: 0 } }
-    );
-    const leads = Array.isArray(leadsRes.data) ? leadsRes.data : [];
-
-    // 3. Resolver datos completos de cada lead
-    const enriched = [];
-    for (const lead of leads.slice(0, limit)) {
-      let contactData = {};
-
-      // Intentar obtener datos del contacto via contactId
-      if (lead.contactId) {
-        try {
-          const cr = await axios.get(
-            `https://api.lemlist.com/api/contacts/${lead.contactId}`,
-            { auth, timeout: 5000 }
-          );
-          contactData = cr.data || {};
-        } catch (e) {
-          // Ignorar errores individuales
-        }
-      }
-
-      enriched.push({
-        leadId:              lead._id,
-        contactId:           lead.contactId || null,
-        state:               lead.state || null,
-        email:               lead.email || contactData.email || null,
-        firstName:           lead.firstName || contactData.firstName || null,
-        lastName:            lead.lastName || contactData.lastName || null,
-        jobTitle:            lead.jobTitle || contactData.jobTitle || null,
-        companyName:         lead.companyName || contactData.companyName || null,
-        linkedinUrl:         contactData.linkedinUrl || lead.linkedinUrl || null,
-        linkedinUrlSalesNav: contactData.linkedinUrlSalesNav || lead.linkedinUrlSalesNav || null,
-        hasEmail:            !!(lead.email || contactData.email),
-        hasLinkedin:         !!(contactData.linkedinUrl || lead.linkedinUrl),
-        hasSalesNav:         !!(contactData.linkedinUrlSalesNav || lead.linkedinUrlSalesNav)
-      });
-    }
-
-    const withEmail    = enriched.filter(l => l.hasEmail).length;
-    const withLinkedin = enriched.filter(l => l.hasLinkedin).length;
-    const withSalesNav = enriched.filter(l => l.hasSalesNav).length;
-
-    res.json({
-      campaign: campaignName,
-      campaignId: campaign._id,
-      totalLeads: leads.length,
-      returned: enriched.length,
-      stats: { withEmail, withLinkedin, withSalesNav },
-      contacts: enriched
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message, detail: err.response?.data });
   }
 });
 
