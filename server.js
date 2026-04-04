@@ -421,87 +421,106 @@ async function getCampaignId() {
   }
 }
 
-async function updateLemlistLead(email, variables, contactId) {
+async function updateLemlistLead(email, variables, contactId, contactData) {
   const auth = { username: '', password: LEMLIST_API_KEY };
-  const enc = email ? encodeURIComponent(email) : null;
-
-  console.log(`   updateLemlistLead: email=${email}, contactId=${contactId}`);
-
-  // Strategy 0 (BEST): PATCH via campaign lead using contactId
   const campaignId = await getCampaignId();
-  if (campaignId && contactId) {
-    try {
-      const res = await axios.patch(
-        `https://api.lemlist.com/api/campaigns/${campaignId}/leads/${encodeURIComponent(contactId)}`,
-        variables, { auth }
-      );
-      console.log('   PATCH exitoso via campaign+contactId');
-      return res.data;
-    } catch (err) {
-      console.log(`   Strategy 0 failed: ${err.response?.status} ${JSON.stringify(err.response?.data || err.message).substring(0, 150)}`);
+
+  // Para contactos sin email, generar placeholder desde LinkedIn slug
+  // Lemlist requiere email como identificador, pero el outreach real es via LinkedIn DM
+  if (!email && contactData && contactData.profileUrl) {
+    const slugMatch = contactData.profileUrl.match(/linkedin\.com\/in\/([^/?#\s]+)/i);
+    if (slugMatch) {
+      email = `linkedin-${slugMatch[1]}@placeholder.lemlist`;
+      console.log(`   \u{1F4E7} Email placeholder generado: ${email}`);
     }
   }
 
-  // Strategy 1: PATCH via campaign-scoped lead endpoint using email
-  if (campaignId && enc) {
-    try {
-      const res = await axios.patch(
-        `https://api.lemlist.com/api/campaigns/${campaignId}/leads/${enc}`,
-        variables, { auth }
-      );
-      console.log('   PATCH exitoso via campaign+email');
-      return res.data;
-    } catch (err) {
-      console.log(`   Strategy 1 failed: ${err.response?.status}`);
-    }
+  const enc = email ? encodeURIComponent(email) : null;
+  console.log(`   \u{1F527} updateLemlistLead: email=${email}, contactId=${contactId}, campaignId=${campaignId}`);
+
+  if (!campaignId) {
+    console.error(`   \u{274C} No se encontro campaignId \u2014 no se puede enrollar lead`);
+    return null;
   }
 
-  // Strategy 2: PATCH /api/leads/{email}
+  // Step 1: Try PATCH on existing campaign lead (by email)
   if (enc) {
     try {
       const res = await axios.patch(
-        `https://api.lemlist.com/api/leads/${enc}`,
-        variables, { auth }
+        `https://api.lemlist.com/api/campaigns/${campaignId}/leads/${enc}`,
+        variables,
+        { auth }
       );
-      console.log('   PATCH exitoso via /api/leads');
-      return res.data;
+      if (res.data && Object.keys(res.data).length > 0) {
+        console.log(`   \u{2705} PATCH exitoso via campaign lead (email)`);
+        return res.data;
+      }
     } catch (err) {
-      console.log(`   Strategy 2 failed: ${err.response?.status}`);
+      const status = err.response?.status;
+      if (status !== 404) {
+        const detail = err.response?.data ? JSON.stringify(err.response.data).substring(0, 200) : '';
+        console.log(`   \u{2139}\u{FE0F}  Campaign PATCH by email ${status}: ${detail}`);
+      }
     }
   }
 
-  // Strategy 3: PATCH /api/contacts/{contactId}
+  // Step 2: Lead no existe en la campana -> enrollar via POST
+  if (enc) {
+    try {
+      const leadBody = { ...variables };
+      if (contactData) {
+        if (contactData.firstName)   leadBody.firstName   = contactData.firstName;
+        if (contactData.lastName)    leadBody.lastName    = contactData.lastName;
+        if (contactData.companyName) leadBody.companyName = contactData.companyName;
+        if (contactData.jobTitle)    leadBody.jobTitle    = contactData.jobTitle;
+        if (contactData.profileUrl)  leadBody.linkedinUrl = contactData.profileUrl;
+      }
+      console.log(`   \u{1F4E5} Enrollando lead en campana: ${email} (LinkedIn: ${leadBody.linkedinUrl || 'N/A'})`);
+      const res = await axios.post(
+        `https://api.lemlist.com/api/campaigns/${campaignId}/leads/${enc}`,
+        leadBody,
+        { auth }
+      );
+      console.log(`   \u{2705} Lead enrollado + variables seteadas en campana`);
+      return res.data || { enrolled: true };
+    } catch (err) {
+      const status = err.response?.status;
+      const detail = err.response?.data ? JSON.stringify(err.response.data).substring(0, 200) : '';
+      console.log(`   \u{2139}\u{FE0F}  POST enroll failed ${status}: ${detail}`);
+      if (status === 409 && enc) {
+        try {
+          const res2 = await axios.patch(
+            `https://api.lemlist.com/api/campaigns/${campaignId}/leads/${enc}`,
+            variables,
+            { auth }
+          );
+          console.log(`   \u{2705} PATCH exitoso post-409 conflict`);
+          return res2.data || { patched: true };
+        } catch (err2) {
+          console.log(`   \u{2139}\u{FE0F}  PATCH post-409 also failed: ${err2.response?.status}`);
+        }
+      }
+    }
+  }
+
+  // Step 3: Fallback \u2014 PATCH en CRM contacts
   if (contactId) {
     try {
       const res = await axios.patch(
         `https://api.lemlist.com/api/contacts/${encodeURIComponent(contactId)}`,
-        variables, { auth }
+        variables,
+        { auth }
       );
-      console.log('   PATCH exitoso via /api/contacts/{contactId}');
-      return res.data;
+      console.log(`   \u{2705} PATCH fallback via /api/contacts/{contactId}`);
+      return res.data || { contactPatched: true };
     } catch (err) {
-      console.log(`   Strategy 3 failed: ${err.response?.status}`);
+      console.log(`   \u{2139}\u{FE0F}  Contact PATCH fallback failed: ${err.response?.status}`);
     }
   }
 
-  // Strategy 4: PATCH /api/contacts/{email}
-  if (enc) {
-    try {
-      const res = await axios.patch(
-        `https://api.lemlist.com/api/contacts/${enc}`,
-        variables, { auth }
-      );
-      console.log('   PATCH exitoso via /api/contacts/{email}');
-      return res.data;
-    } catch (err) {
-      console.log(`   Strategy 4 failed: ${err.response?.status}`);
-    }
-  }
-
-  console.error(`   Todas las estrategias de PATCH fallaron para: email=${email}, contactId=${contactId}`);
+  console.error(`   \u{274C} No se pudo enrollar ni actualizar: email=${email}, contactId=${contactId}`);
   return null;
 }
-
 // âââ PROCESAMIENTO PRINCIPAL ââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 async function processNewContacts(results) {
