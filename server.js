@@ -135,22 +135,6 @@ async function findContact(profileUrl, firstName, lastName) {
     if (!found && contacts.length === 1) found = contacts[0];
     return found;
   }
-
-  // Strategy 0 (BEST): PATCH via campaign lead using contactId
-  const campaignId = await getCampaignId();
-  if (campaignId && contactId) {
-    try {
-      const res = await axios.patch(
-        `https://api.lemlist.com/api/campaigns/${campaignId}/leads/${encodeURIComponent(contactId)}`,
-        variables, { auth }
-      );
-      console.log('   PATCH exitoso via campaign+contactId');
-      return res.data;
-    } catch (err) {
-      console.log(`   Strategy 0 (campaign+contactId) failed: ${err.response?.status} ${JSON.stringify(err.response?.data || err.message).substring(0, 150)}`);
-    }
-  }
-
   // Strategy 1: GET /api/contacts/{firstName}@search â try search via query parameter
   // Strategy 2: GET /api/leads â search leads across campaigns
   const endpoints = [
