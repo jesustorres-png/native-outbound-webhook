@@ -590,7 +590,7 @@ async function processNewContacts(results) {
       console.log(`   âï¸  Mensajes generados por Claude`);
 
       // 2. Actualizar Lemlist (si tenemos email)
-      if (email || contactId) {
+      if (email || contactId || contact.profileUrl) {
         try {
           const lemlistResult = await updateLemlistLead(email, {
             customSubject:        messages.customSubject        || '',
@@ -602,7 +602,7 @@ async function processNewContacts(results) {
             customNativeAngle:    messages.analysis?.nativeAngle || '',
             linkedinActivityProcessed: new Date().toISOString(),
             postsWereRecent: postsAreRecent ? 'yes' : 'no'
-          }, contactId);
+          }, contactId, contact);
 
           if (lemlistResult) {
             console.log(`   â Lemlist actualizado: ${email}`);
@@ -626,7 +626,7 @@ async function processNewContacts(results) {
         profileUrl:     contact.profileUrl || '',
         postsCount:     contact.posts.length,
         postsWereRecent: postsAreRecent,
-        lemlistUpdated: !!(email || contactId)
+        lemlistUpdated: !!(email || contactId || contact.profileUrl)
       };
 
       newCount++;
