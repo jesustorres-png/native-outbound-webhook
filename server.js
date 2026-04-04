@@ -763,7 +763,25 @@ app.post('/rebuild-map', async (req, res) => {
   });
 });
 
-// Ver estadÃ­sticas de procesados
+// Ve// Resetear contactos procesados (permite re-procesar todo)
+app.post('/reset-processed', (req, res) => {
+  const secret = req.headers['x-webhook-secret'] || req.query.secret;
+  if (secret !== WEBHOOK_SECRET) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  const prev = loadProcessed();
+  const count = Object.keys(prev).length;
+  saveProcessed({});
+  Object.keys(contactEmailCache).forEach(k => delete contactEmailCache[k]);
+  res.json({
+    success: true,
+    message: 'Procesados reseteados (' + count + ' contactos). Cache limpiado.',
+    previousCount: count,
+    currentCount: 0
+  });
+});
+
+r estadÃ­sticas de procesados
 app.get('/stats', (req, res) => {
   const processed = loadProcessed();
   const list = Object.entries(processed);
