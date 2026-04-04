@@ -765,7 +765,7 @@ app.post('/reset-processed', (req, res) => {
   });
 });
 
-r estadÃ­sticas de procesados
+// Ver estadísticas de procesados
 app.get('/stats', (req, res) => {
   const processed = loadProcessed();
   const list = Object.entries(processed);
