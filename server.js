@@ -88,7 +88,7 @@ function hasRecentPosts(posts, maxDaysOld) {
 // âââ LEMLIST CONTACT LOOKUP (LinkedIn URL â email) ââââââââââââââââââââââââââââ
 
 // Cache para evitar llamadas repetidas al API de contactos
-// Clave: linkedin.com/in/slug  â Valor: email | null
+// Clave: linkedin.com/in/slug  â Valor: { email, contactId } | null
 const contactEmailCache = {};
 
 /**
@@ -136,6 +136,21 @@ async function findContact(profileUrl, firstName, lastName) {
     return found;
   }
 
+  // Strategy 0 (BEST): PATCH via campaign lead using contactId
+  const campaignId = await getCampaignId();
+  if (campaignId && contactId) {
+    try {
+      const res = await axios.patch(
+        `https://api.lemlist.com/api/campaigns/${campaignId}/leads/${encodeURIComponent(contactId)}`,
+        variables, { auth }
+      );
+      console.log('   PATCH exitoso via campaign+contactId');
+      return res.data;
+    } catch (err) {
+      console.log(`   Strategy 0 (campaign+contactId) failed: ${err.response?.status} ${JSON.stringify(err.response?.data || err.message).substring(0, 150)}`);
+    }
+  }
+
   // Strategy 1: GET /api/contacts/{firstName}@search â try search via query parameter
   // Strategy 2: GET /api/leads â search leads across campaigns
   const endpoints = [
@@ -159,14 +174,16 @@ async function findContact(profileUrl, firstName, lastName) {
 
       const found = matchContact(contacts);
       const email = found?.email || null;
-      contactEmailCache[cacheKey] = email;
+      const contactId = found?._id || found?.contactId || null;
+      const result = email ? { email, contactId } : null;
+      contactEmailCache[cacheKey] = result;
 
       if (email) {
-        console.log(`   â Contacto encontrado en LemCRM: ${email} (buscado: "${searchTerm}" via ${endpoint.url})`);
+        console.log(`   â Contacto encontrado en LemCRM: ${email} (contactId: ${contactId}) (buscado: "${searchTerm}" via ${endpoint.url})`);
       } else if (contacts.length > 0) {
         console.log(`   â ï¸  No match exacto en LemCRM (${contacts.length} resultados para "${searchTerm}" via ${endpoint.url})`);
       }
-      return email;
+      return result;
     } catch (err) {
       const status = err.response?.status;
       const detail = err.response?.data ? JSON.stringify(err.response.data).substring(0, 200) : '';
@@ -177,12 +194,46 @@ async function findContact(profileUrl, firstName, lastName) {
 
   // All endpoints failed
   console.error(`   â ï¸  findContact: all endpoints failed for "${searchTerm}"`);
+  // All endpoints failed - try fetching campaign leads to find contactId by name match
+  console.log(`   info findContact: standard endpoints failed for "${searchTerm}", trying campaign leads...`);
+  const campaignId = await getCampaignId();
+  if (campaignId) {
+    try {
+      const leadsRes = await axios.get(`https://api.lemlist.com/api/campaigns/${campaignId}/leads`, {
+        auth: { username: '', password: LEMLIST_API_KEY },
+        params: { limit: 100, offset: 0 },
+        timeout: 15000
+      });
+      const leads = leadsRes.data || [];
+      const fNameLower = (firstName || '').toLowerCase();
+      const lNameLower = (lastName || '').toLowerCase();
+      const leadMatch = leads.find(l => {
+        const lf = (l.firstName || '').toLowerCase();
+        const ll = (l.lastName || '').toLowerCase();
+        if (fNameLower && lNameLower) return lf === fNameLower && ll === lNameLower;
+        if (fNameLower) return lf === fNameLower;
+        return false;
+      });
+      if (leadMatch) {
+        const result = {
+          email: leadMatch.email || null,
+          contactId: leadMatch.contactId || leadMatch._id || null
+        };
+        contactEmailCache[cacheKey] = result;
+        console.log(`   Found contact via campaign leads: email=${result.email}, contactId=${result.contactId}`);
+        return result;
+      }
+    } catch (err) {
+      console.log(`   Campaign leads search failed: ${err.message}`);
+    }
+  }
+
   contactEmailCache[cacheKey] = null;
   return null;
 }
 
-// Resuelve el email de un lead dado su profileUrl y nombre
-async function resolveEmailFromLinkedIn(profileUrl, firstName, lastName) {
+// Resuelve el email y contactId de un lead dado su profileUrl y nombre
+async function resolveContactFromLinkedIn(profileUrl, firstName, lastName) {
   return await findContact(profileUrl, firstName, lastName);
 }
 
@@ -386,56 +437,84 @@ async function getCampaignId() {
   }
 }
 
-async function updateLemlistLead(email, variables) {
+async function updateLemlistLead(email, variables, contactId) {
   const auth = { username: '', password: LEMLIST_API_KEY };
-  const enc = encodeURIComponent(email);
+  const enc = email ? encodeURIComponent(email) : null;
 
-  // Strategy 1: PATCH via campaign-scoped lead endpoint
+  console.log(`   updateLemlistLead: email=${email}, contactId=${contactId}`);
+
+  // Strategy 0 (BEST): PATCH via campaign lead using contactId
   const campaignId = await getCampaignId();
-  if (campaignId) {
+  if (campaignId && contactId) {
     try {
       const res = await axios.patch(
-        `https://api.lemlist.com/api/campaigns/${campaignId}/leads/${enc}`,
-        variables,
-        { auth }
+        `https://api.lemlist.com/api/campaigns/${campaignId}/leads/${encodeURIComponent(contactId)}`,
+        variables, { auth }
       );
+      console.log('   PATCH exitoso via campaign+contactId');
       return res.data;
     } catch (err) {
-      const status = err.response?.status;
-      const detail = err.response?.data ? JSON.stringify(err.response.data).substring(0, 200) : '';
-      console.log(`   â¹ï¸  Campaign lead PATCH ${status}: ${detail}`);
+      console.log(`   Strategy 0 failed: ${err.response?.status} ${JSON.stringify(err.response?.data || err.message).substring(0, 150)}`);
     }
   }
 
-  // Strategy 2: PATCH /api/leads/{email} (sin campaÃ±a)
-  try {
-    const res = await axios.patch(
-      `https://api.lemlist.com/api/leads/${enc}`,
-      variables,
-      { auth }
-    );
-    return res.data;
-  } catch (err) {
-    const status = err.response?.status;
-    const detail = err.response?.data ? JSON.stringify(err.response.data).substring(0, 200) : '';
-    console.log(`   â¹ï¸  Global lead PATCH ${status}: ${detail}`);
+  // Strategy 1: PATCH via campaign-scoped lead endpoint using email
+  if (campaignId && enc) {
+    try {
+      const res = await axios.patch(
+        `https://api.lemlist.com/api/campaigns/${campaignId}/leads/${enc}`,
+        variables, { auth }
+      );
+      console.log('   PATCH exitoso via campaign+email');
+      return res.data;
+    } catch (err) {
+      console.log(`   Strategy 1 failed: ${err.response?.status}`);
+    }
   }
 
-  // Strategy 3: PATCH /api/contacts/{email} (CRM contacts)
-  try {
-    const res = await axios.patch(
-      `https://api.lemlist.com/api/contacts/${enc}`,
-      variables,
-      { auth }
-    );
-    return res.data;
-  } catch (err) {
-    const status = err.response?.status;
-    const detail = err.response?.data ? JSON.stringify(err.response.data).substring(0, 200) : '';
-    console.log(`   â¹ï¸  Contact PATCH ${status}: ${detail}`);
+  // Strategy 2: PATCH /api/leads/{email}
+  if (enc) {
+    try {
+      const res = await axios.patch(
+        `https://api.lemlist.com/api/leads/${enc}`,
+        variables, { auth }
+      );
+      console.log('   PATCH exitoso via /api/leads');
+      return res.data;
+    } catch (err) {
+      console.log(`   Strategy 2 failed: ${err.response?.status}`);
+    }
   }
 
-  console.error(`   â Todas las estrategias de PATCH fallaron para: ${email}`);
+  // Strategy 3: PATCH /api/contacts/{contactId}
+  if (contactId) {
+    try {
+      const res = await axios.patch(
+        `https://api.lemlist.com/api/contacts/${encodeURIComponent(contactId)}`,
+        variables, { auth }
+      );
+      console.log('   PATCH exitoso via /api/contacts/{contactId}');
+      return res.data;
+    } catch (err) {
+      console.log(`   Strategy 3 failed: ${err.response?.status}`);
+    }
+  }
+
+  // Strategy 4: PATCH /api/contacts/{email}
+  if (enc) {
+    try {
+      const res = await axios.patch(
+        `https://api.lemlist.com/api/contacts/${enc}`,
+        variables, { auth }
+      );
+      console.log('   PATCH exitoso via /api/contacts/{email}');
+      return res.data;
+    } catch (err) {
+      console.log(`   Strategy 4 failed: ${err.response?.status}`);
+    }
+  }
+
+  console.error(`   Todas las estrategias de PATCH fallaron para: email=${email}, contactId=${contactId}`);
   return null;
 }
 
@@ -495,11 +574,16 @@ async function processNewContacts(results) {
     // Resolver email: primero del CSV (suele estar vacÃ­o en Phantombuster),
     // luego bÃºsqueda en LemCRM por nombre + verificaciÃ³n de LinkedIn URL
     let email = contact.email;
-    if (!email && (contact.firstName || contact.lastName)) {
-      email = await resolveEmailFromLinkedIn(contact.profileUrl, contact.firstName, contact.lastName);
-      if (email) {
-        contact.email = email;
-        console.log(`\nð Email resuelto para ${contact.firstName} ${contact.lastName}: ${email}`);
+    let contactId = null;
+    if (contact.firstName || contact.lastName) {
+      const contactInfo = await resolveContactFromLinkedIn(contact.profileUrl, contact.firstName, contact.lastName);
+      if (contactInfo) {
+        if (!email && contactInfo.email) {
+          email = contactInfo.email;
+          contact.email = email;
+        }
+        contactId = contactInfo.contactId || null;
+        console.log(`Contacto resuelto para ${contact.firstName} ${contact.lastName}: email=${email}, contactId=${contactId}`);
       }
     }
 
@@ -522,7 +606,7 @@ async function processNewContacts(results) {
       console.log(`   âï¸  Mensajes generados por Claude`);
 
       // 2. Actualizar Lemlist (si tenemos email)
-      if (email) {
+      if (email || contactId) {
         try {
           const lemlistResult = await updateLemlistLead(email, {
             customSubject:        messages.customSubject        || '',
@@ -534,7 +618,7 @@ async function processNewContacts(results) {
             customNativeAngle:    messages.analysis?.nativeAngle || '',
             linkedinActivityProcessed: new Date().toISOString(),
             postsWereRecent: postsAreRecent ? 'yes' : 'no'
-          });
+          }, contactId);
 
           if (lemlistResult) {
             console.log(`   â Lemlist actualizado: ${email}`);
@@ -554,10 +638,11 @@ async function processNewContacts(results) {
         processedAt:    new Date().toISOString(),
         name:           `${contact.firstName} ${contact.lastName}`,
         email:          email || '',
+      contactId: contactId || '',
         profileUrl:     contact.profileUrl || '',
         postsCount:     contact.posts.length,
         postsWereRecent: postsAreRecent,
-        lemlistUpdated: !!email
+        lemlistUpdated: !!(email || contactId)
       };
 
       newCount++;
